@@ -1,3 +1,23 @@
+---
+page_type: sample
+languages:
+- terraform
+- powershell
+products:
+- azure
+- azure-api-management
+- azure-monitor
+- azure-container-apps
+- azure-policy
+- entra-id
+urlFragment: governed-multitenant-agent-platform
+name: Governed multitenant AI agent platform
+description: |
+  A de-identified Terraform reference implementation for governing AI agents across a multitenant
+  organization: one control plane, runtime enforcement at an Azure API Management AI gateway, and
+  centralized visibility in Azure Monitor. Deploys one hub plus one spoke with Azure Verified Modules.
+---
+
 # Governed multitenant AI agent platform — reference implementation (one hub + one spoke)
 
 De-identified Terraform reference implementation for the **governed multitenant AI agent platform**
