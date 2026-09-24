@@ -19,7 +19,7 @@ module "resource_group" {
   enable_telemetry = false
 }
 
-# R4 - telemetry sink: gateway + agent telemetry lands here (spokes send via diagnostics + Lighthouse)
+# telemetry sink: gateway + agent telemetry lands here (spokes send via diagnostics + Lighthouse)
 module "log_analytics" {
   source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
   version = "0.5.1"
@@ -44,7 +44,7 @@ resource "random_string" "audit_suffix" {
   special = false
 }
 
-# R4 - immutable (WORM) audit sink
+# immutable (WORM) audit sink
 # Storage account names are global and <= 24 lowercase alphanumerics; base (19) + suffix (5)
 # stays within the limit and stays stable once written to state.
 module "audit_storage" {
@@ -76,7 +76,7 @@ module "audit_storage" {
   }
 }
 
-# R4 - hub dashboard: telemetry + illustrative ROI workbook over the Log Analytics workspace
+# hub dashboard: telemetry + illustrative ROI workbook over the Log Analytics workspace
 module "workbook" {
   source = "../../modules/hub-workbook"
 
@@ -86,7 +86,7 @@ module "workbook" {
   tags                                = local.tags
 }
 
-# R4 - hub-side fleet alerting + FinOps budget: an action group, two cross-workspace
+# hub-side fleet alerting + FinOps budget: an action group, two cross-workspace
 # scheduled-query alerts (fleet token spend, fleet exception spike), and a subscription budget.
 # Cross-tenant alert firing over Lighthouse is validated after the first clean 200; the budget is
 # hub-local and always works. Spoke workspace ids, email, and thresholds use the module defaults.
@@ -103,5 +103,5 @@ module "alerts" {
   tags                       = local.tags
 }
 
-# TODO R4: Azure Lighthouse delegation (no AVM module yet -> thin azapi/azurerm wrapper) so
+# TODO: Azure Lighthouse delegation (no AVM module yet -> thin azapi/azurerm wrapper) so
 #      spoke telemetry rolls up to this hub. Needs the managing tenant + principal object ids.

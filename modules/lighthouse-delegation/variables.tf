@@ -11,7 +11,7 @@ variable "managing_tenant_id" {
 variable "definition_name" {
   type        = string
   description = "Human-readable name for the Lighthouse registration definition."
-  default     = "Agent Factory hub telemetry rollup"
+  default     = "agent platform hub telemetry rollup"
 }
 
 variable "authorizations" {

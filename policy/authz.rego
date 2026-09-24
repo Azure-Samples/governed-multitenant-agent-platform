@@ -1,4 +1,4 @@
-# Policy-as-code for the Agent Factory Policy Decision Point (A-1.3), served by OPA.
+# Policy-as-code for the agent platform Policy Decision Point, served by OPA.
 # Hierarchy the customer requires: enterprise (non-overridable) -> BU -> team -> agent.
 # Lower levels may only ADD restrictions, never remove an enterprise one.
 # Fail-closed: anything not explicitly allowed is denied (the gateway PEP treats a missing
@@ -16,7 +16,7 @@ valid_clearance if input.clearance == "public"
 valid_clearance if input.clearance == "internal"
 valid_clearance if input.clearance == "restricted"
 
-# Governed SOP read (A-1.3): a POST that clears the enterprise guardrail and carries a
+# Governed specification read: a POST that clears the enterprise guardrail and carries a
 # recognized clearance. A missing or invalid clearance falls through to deny (fail-closed).
 allow if {
 	not enterprise_denied

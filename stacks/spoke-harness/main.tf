@@ -16,7 +16,7 @@ module "resource_group" {
   enable_telemetry = false
 }
 
-# R1 governed gateway is deployed by stacks/spoke-gateway (the adopted accelerator).
+# governed gateway is deployed by stacks/spoke-gateway (the adopted accelerator).
 # Read its outputs so the harness can wire the MCP tool + PDP into the gateway and so
 # harness outputs surface the full picture. Deploy spoke-gateway before spoke-harness.
 #
@@ -36,7 +36,7 @@ data "terraform_remote_state" "gateway" {
   }
 }
 
-# A-4.1 Telemetry sink: Log Analytics workspace for the harness. The MCP tool and the
+# Telemetry sink: Log Analytics workspace for the harness. The MCP tool and the
 # policy engine (PDP) send their Container Apps logs here via the managed environment, and
 # the hub reads it through the Lighthouse delegation. Without this a lite spoke has no
 # queryable sink, so the hub rollup would be empty even with Lighthouse in place.
@@ -58,7 +58,7 @@ module "log_analytics" {
   log_analytics_workspace_internet_ingestion_enabled = "true"
 }
 
-# R2 - Container App Environment that hosts the MCP tool
+# Container App Environment that hosts the MCP tool
 module "mcp_env" {
   source  = "Azure/avm-res-app-managedenvironment/azurerm"
   version = "0.5.0"
@@ -77,13 +77,13 @@ module "mcp_env" {
   }
 }
 
-# A-2.1 - immutable artifact repository (Premium) that will hold the MCP tool image.
+# - immutable artifact repository (Premium) that will hold the MCP tool image.
 # Name must be globally unique and alphanumeric only; add a suffix before a real deploy.
 module "acr" {
   source  = "Azure/avm-res-containerregistry-registry/azurerm"
   version = "0.8.0"
 
-  name                     = "acragentfac${var.environment}"
+  name                     = "acrgovagent${var.environment}"
   location                 = var.location
   resource_group_name      = module.resource_group.name
   sku                      = var.acr_sku
@@ -93,7 +93,7 @@ module "acr" {
   enable_telemetry         = false
 }
 
-# A-1.3 Policy Engine (PDP): OPA served as a Container App; the gateway PEP calls it.
+# Policy Engine (PDP): OPA served as a Container App; the gateway PEP calls it.
 module "policy_engine" {
   source = "../../modules/policy-engine"
 
@@ -106,7 +106,7 @@ module "policy_engine" {
   tags                                  = local.tags
 }
 
-# X-3 Event Bus is provided by the adopted accelerator (spoke-gateway eventhub_namespace).
+# Event Bus is provided by the adopted accelerator (spoke-gateway eventhub_namespace).
 
 # Azure Lighthouse: delegate this spoke to the hub tenant for central telemetry/cost rollup.
 # Off by default; a spoke enables it with the hub tenant id + hub principal object id.
@@ -125,7 +125,7 @@ module "lighthouse" {
   ]
 }
 
-# R2 - MCP tool. Placeholder image by default; set mcp_tool_image (and mcp_tool_target_port
+# MCP tool. Placeholder image by default; set mcp_tool_image (and mcp_tool_target_port
 # 8080 to match the governed-read Dockerfile) once that image is pushed to the spoke ACR.
 module "mcp_tool" {
   source = "../../modules/mcp-tool"
@@ -151,9 +151,9 @@ resource "azurerm_role_assignment" "mcp_acrpull" {
   principal_id         = module.mcp_tool.identity_principal_id
 }
 
-# B-1.1 Agent Runtime backend (Option A): an Azure AI Foundry (AIServices) account with
+# Agent Runtime backend (Option A): an Azure AI Foundry (AIServices) account with
 # project management so this spoke can host an agent that reaches data ONLY through the
-# governed MCP tool (B-1.2/B-1.3). Region may differ from the spoke to find model quota.
+# governed MCP tool. Region may differ from the spoke to find model quota.
 module "foundry" {
   count   = var.enable_foundry ? 1 : 0
   source  = "Azure/avm-res-cognitiveservices-account/azurerm"
@@ -188,7 +188,7 @@ module "foundry" {
   }
 }
 
-# B-2.1 Guardrails: a standalone Content Safety account the agent/tool can call for
+# Guardrails: a standalone Content Safety account the agent/tool can call for
 # input/output moderation (the model deployment also carries a default content filter).
 module "content_safety" {
   count   = var.enable_foundry ? 1 : 0
@@ -206,12 +206,12 @@ module "content_safety" {
   enable_telemetry              = false
 }
 
-# A-2.2 capability catalog (API Center) is provided by the adopted accelerator.
+# capability catalog (API Center) is provided by the adopted accelerator.
 
-# TODO R2: register the MCP tool as a governed backend/API in the accelerator's APIM
+# TODO: register the MCP tool as a governed backend/API in the accelerator's APIM
 #      gateway (data.terraform_remote_state.gateway.outputs.apim_name) and implement the
 #      classification-checked governed read against the synthetic Omni-style endpoint.
-# TODO A-1.3/B-2.3: point the gateway PEP at the PDP (module.policy_engine.pdp_url) via an
+# TODO: point the gateway PEP at the PDP (module.policy_engine.pdp_url) via an
 #      APIM policy fragment, once the Aug 25 identity decision lands.
 # TODO Step 3 (adopt-and-wrap): add the AGT module (ACS v5) for runtime policy +
 #      tamper-evident audit alongside the OPA PDP (defense in depth).

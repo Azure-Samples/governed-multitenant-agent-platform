@@ -1,4 +1,4 @@
-# A-1.3 Policy Engine (PDP). The customer specifies OPA/Cedar; this runs Open Policy
+# Policy Engine (PDP). You can use OPA or Cedar; this runs Open Policy
 # Agent as a Container App serving allow/deny decisions over its REST API. Thin AVM-style
 # wrapper over the AVM Container App module. Ships with OPA's default (empty) policy until
 # the Rego bundle (enterprise -> BU -> team -> agent namespaces) is authored; with no policy

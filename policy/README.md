@@ -1,4 +1,4 @@
-# Runtime governance policy (A-1.3)
+# Runtime governance policy
 
 Two complementary layers answer "is this action allowed?" at runtime. Both must pass (defense in depth).
 

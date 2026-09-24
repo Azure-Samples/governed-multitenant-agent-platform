@@ -3,7 +3,7 @@ output "resource_group_name" {
   value       = module.resource_group.name
 }
 
-# R1 gateway values come from stacks/spoke-gateway (the adopted accelerator).
+# gateway values come from stacks/spoke-gateway (the adopted accelerator).
 # Null when enable_gateway_integration is false (no large-compute accelerator deployed).
 output "gateway_url" {
   description = "APIM gateway base URL (from spoke-gateway; null when the accelerator is not integrated)."
@@ -21,7 +21,7 @@ output "key_vault_uri" {
 }
 
 output "event_bus_namespace" {
-  description = "Event Hub namespace (X-3 event bus) provided by the accelerator (from spoke-gateway; null when the accelerator is not integrated)."
+  description = "Event Hub namespace (event bus) provided by the accelerator (from spoke-gateway; null when the accelerator is not integrated)."
   value       = try(data.terraform_remote_state.gateway[0].outputs.eventhub_namespace, null)
 }
 
@@ -36,7 +36,7 @@ output "acr_login_server" {
 }
 
 output "pdp_url" {
-  description = "OPA policy decision point base URL (A-1.3)."
+  description = "OPA policy decision point base URL."
   value       = module.policy_engine.pdp_url
 }
 

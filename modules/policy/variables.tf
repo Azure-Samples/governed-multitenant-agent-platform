@@ -7,7 +7,7 @@ variable "name" {
 variable "display_name" {
   type        = string
   description = "Initiative display name."
-  default     = "Agent Factory - AI platform guardrails (audit-first)"
+  default     = "agent platform - AI platform guardrails (audit-first)"
 }
 
 variable "description" {

@@ -94,7 +94,7 @@ resource "azurerm_monitor_action_group" "hub" {
 # the threshold (a runaway-agent / prompt-loop / cost-spike early warning).
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "token_spend" {
   name                    = "alert-fleet-token-spend"
-  description             = "Cost guard (whole fleet). Fires when the governed fleet's total tokens today exceed the daily cap (condition: fleetTokensToday > threshold). The alert names the top-contributing spoke and agent (SOP capability) and compares today's spend to yesterday's baseline. Reads spoke AppGenAIContent cross-workspace over Lighthouse."
+  description             = "Cost guard (whole fleet). Fires when the governed fleet's total tokens today exceed the daily cap (condition: fleetTokensToday > threshold). The alert names the top-contributing spoke and agent (specification capability) and compares today's spend to yesterday's baseline. Reads spoke AppGenAIContent cross-workspace over Lighthouse."
   resource_group_name     = var.resource_group_name
   location                = var.location
   evaluation_frequency    = "PT1H"

@@ -43,7 +43,7 @@ variable "acr_sku" {
 
 variable "mcp_tool_image" {
   type        = string
-  description = "Container image for the MCP tool (ca-mcp-<env>). Defaults to the hello-world placeholder; set to the governed-read image in the spoke ACR (e.g. acragentfac<env>.azurecr.io/governed-sop-read:v1) once it is built and pushed, then apply to flip ca-mcp off the placeholder."
+  description = "Container image for the MCP tool (ca-mcp-<env>). Defaults to the hello-world placeholder; set to the governed-read image in the spoke ACR (e.g. acrgovagent<env>.azurecr.io/governed-read:v1) once it is built and pushed, then apply to flip ca-mcp off the placeholder."
   default     = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 }
 
@@ -55,7 +55,7 @@ variable "mcp_tool_target_port" {
 
 variable "mcp_tool_registry_server" {
   type        = string
-  description = "Login server of the spoke ACR (acragentfac<env>.azurecr.io) so the MCP tool pulls its private image via its managed identity (AcrPull is granted in main.tf). Set together with mcp_tool_image in phase 2, after az acr build. Null for the public placeholder."
+  description = "Login server of the spoke ACR (acrgovagent<env>.azurecr.io) so the MCP tool pulls its private image via its managed identity (AcrPull is granted in main.tf). Set together with mcp_tool_image in phase 2, after az acr build. Null for the public placeholder."
   default     = null
 }
 
@@ -129,7 +129,7 @@ variable "lighthouse_principal_id" {
 variable "lighthouse_principal_display_name" {
   type        = string
   description = "Display name for the Lighthouse authorization."
-  default     = "Agent Factory Hub"
+  default     = "agent platform Hub"
 }
 
 variable "enable_foundry" {

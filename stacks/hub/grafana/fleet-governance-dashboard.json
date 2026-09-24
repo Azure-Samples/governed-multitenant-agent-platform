@@ -232,7 +232,7 @@
     {
       "id": 16,
       "type": "table",
-      "title": "Tool-call grounding (Business unit 1 SOP retrieval)",
+      "title": "Tool-call grounding (Business unit 1 specification retrieval)",
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 32 },
       "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
       "targets": [

@@ -51,7 +51,7 @@ across a federation:
 | Path | Role |
 | --- | --- |
 | `stacks/hub` | Hub stack: resource group, Log Analytics, WORM audit storage, governance workbook, alerts, Lighthouse delegation. |
-| `stacks/spoke-harness` | One spoke stack: MCP tool host, policy engine (PDP/PEP), spoke telemetry; optional integration with the R1 gateway accelerator. |
+| `stacks/spoke-harness` | One spoke stack: MCP tool host, policy engine (PDP/PEP), spoke telemetry; optional integration with the gateway accelerator. |
 | `modules/hub-workbook` | Azure Monitor Workbook rendered from a fleet list (`locals.tf`) — onboarding a business unit is one config entry. Sample ships two generic BUs (`bu1`, `bu2`). |
 | `modules/hub-alerts` | Hub alert rules over spoke telemetry. |
 | `modules/lighthouse-delegation` | Azure Lighthouse read-only delegation (Reader, Monitoring Reader) to the governing tenant. |
@@ -61,25 +61,26 @@ across a federation:
 | `modules/purview`, `modules/api-center`, `modules/apim-ai-gateway` | Supporting module library for the control/execution planes. |
 | `policy/` | Sample policy-as-code bundle (`authz.rego`) and agent governance policy. |
 
-### Component ID mapping
+### How the code maps to the architecture
 
-Each included component traces to a component ID in the architecture article (the source of truth):
+The article organizes the platform into three planes over a shared foundation, deployed across a
+federation. Each module realizes one of those capabilities:
 
-| Component ID | Article component | Realized by |
+| Plane | Capability | Realized by |
 | --- | --- | --- |
-| A-1.3 / B-2.3 | Policy engine (PDP) / runtime policy enforcer (PEP) | `modules/policy-engine`, `policy/authz.rego` |
-| A-2.2 | Capability catalog | `modules/api-center` |
-| A-2.3 | Routing and orchestration gateway | `modules/apim-ai-gateway` (production: the adopted AI Gateway Landing Zone accelerator) |
-| B-1.2 / B-1.3 | Tool integration (MCP) / classification-aware data access | `modules/mcp-tool` |
-| C-1.2 | Telemetry and audit pipeline (WORM) | `stacks/hub` (Log Analytics + immutable audit storage) |
-| C-1.5 | Business value and ROI | `modules/hub-workbook`, `stacks/hub/grafana` |
-| X-2 | Data classification service | `modules/purview` |
-| X-1 / federation | Identity and delegated governance | `modules/lighthouse-delegation` |
-| Guardrails (infra) | Azure Policy platform guardrails | `modules/policy` |
+| Control | Policy engine and runtime enforcement (policy-as-code, fail-closed) | `modules/policy-engine`, `policy/authz.rego` |
+| Control | Capability catalog | `modules/api-center` |
+| Execution | Routing and orchestration gateway | `modules/apim-ai-gateway` (production: the adopted AI Gateway Landing Zone accelerator) |
+| Execution | Governed MCP tool and classification-aware data access | `modules/mcp-tool` |
+| Operations | Telemetry and immutable (WORM) audit | `stacks/hub` (Log Analytics + immutable audit storage) |
+| Operations | Business value and ROI dashboards | `modules/hub-workbook`, `stacks/hub/grafana` |
+| Shared services | Data classification | `modules/purview` |
+| Federation | Identity and delegated governance | `modules/lighthouse-delegation` |
+| Platform governance | Azure Policy guardrails | `modules/policy` |
 
 ### Deliberately excluded from this sample
 
-- The **R1 governed gateway** (APIM AI gateway, Content Safety, API Center catalog, Foundry model
+- The **governed gateway** (APIM AI gateway, Content Safety, API Center catalog, Foundry model
   backend) is provided in production by the published Microsoft **AI Gateway Landing Zone**
   accelerator (`Azure/terraform-ai-gateway-landing-zone`), adopted at a pinned commit rather than
   copied in. `stacks/spoke-harness` integrates with it optionally (`enable_gateway_integration`,

@@ -1,7 +1,7 @@
-# R2 - MCP tool (B-1.2 / B-1.3): least-privilege MCP server that hosts the governed read.
+# MCP tool: least-privilege MCP server that hosts the governed read.
 # Thin AVM-style wrapper over the AVM Container App module. Runs a placeholder image until the
 # real MCP server (with the classification-checked governed read) is built; that read logic is
-# blocked on the pilot SOP (due Aug 28).
+# blocked on the pilot specification (due Aug 28).
 
 locals {
   # Container Apps secret names must be lowercase alphanumeric with hyphens; env var names are

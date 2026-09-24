@@ -16,7 +16,7 @@ subset; multi-tenant fan-out and extra spokes are intentionally excluded.
 - `stacks/hub` — deploy once: Log Analytics, WORM audit storage, governance workbook, alerts,
   Azure Lighthouse rollup.
 - `stacks/spoke-harness` — one spoke: MCP tool host, OPA policy engine (PDP/PEP), spoke telemetry;
-  optional integration with the R1 gateway accelerator.
+  optional integration with the gateway accelerator.
 - `modules/` — AVM-style local modules (`hub-workbook`, `hub-alerts`, `lighthouse-delegation`,
   `mcp-tool`, `policy-engine`, `policy`, `purview`, `api-center`, `apim-ai-gateway`).
 - `policy/` — `authz.rego` (OPA PDP) and `agt-policy.yaml` (AGT).
@@ -33,5 +33,5 @@ subset; multi-tenant fan-out and extra spokes are intentionally excluded.
 - **Label preview services as preview:** Microsoft Agent 365, Microsoft Entra Tenant Governance, and
   the Azure API Management dedicated AI Gateway tier.
 - Favor simplicity; comment any choice that isn't production best practice.
-- Component IDs (A-2.3, B-2.3, X-3, ...) trace to the article as the source of truth; see the
-  Component ID mapping in `README.md`.
+- Each module maps to a plane and capability in the article (control / execution / operations,
+  shared services, federation); see "How the code maps to the architecture" in `README.md`.

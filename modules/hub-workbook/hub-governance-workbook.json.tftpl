@@ -4,7 +4,7 @@
     {
       "type": 1,
       "content": {
-        "json": "# Agent Factory: Cross-Tenant Governance & ROI\nMaps to the customer architecture's Operations plane: **C-1.2 Telemetry & Audit** (traces and correlation, token cost, classification-aware redaction, and the immutable audit store), **C-1.5 Business Value & ROI** (per-capability attribution, BU-level rollup), **C-1.3 Evaluation**, **B-1.3 / X-2 classification enforcement**, **A-1.1 SOP-linkage**, and **A-2.3 Gateway**. Coverage varies by tenant (BU) and by how far each spoke is wired; every tile states what is live versus what is a wiring gap.\n\nRead from the hub over Azure Lighthouse. **Nothing is copied to the hub** (this workspace holds no telemetry of its own); every tile queries the spokes' own Log Analytics workspaces cross-workspace. Counts, tokens, and latency only, never message content.\n\nEach governed **tenant** is a **business unit (BU)**. Use the **BU** picker to drill into one, or leave **All** for the whole fleet."
+        "json": "# Cross-tenant governance and ROI\nMaps to the reference architecture's Operations plane: **Telemetry & Audit** (traces and correlation, token cost, classification-aware redaction, and the immutable audit store), **Business Value & ROI** (per-capability attribution, BU-level rollup), **Evaluation**, **/ classification enforcement**, **specification linkage**, and **Gateway**. Coverage varies by tenant (BU) and by how far each spoke is wired; every tile states what is live versus what is a wiring gap.\n\nRead from the hub over Azure Lighthouse. **Nothing is copied to the hub** (this workspace holds no telemetry of its own); every tile queries the spokes' own Log Analytics workspaces cross-workspace. Counts, tokens, and latency only, never message content.\n\nEach governed **tenant** is a **business unit (BU)**. Use the **BU** picker to drill into one, or leave **All** for the whole fleet."
       },
       "name": "title"
     },
@@ -575,7 +575,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Automated governance guardrails\nThe hub does not only record. It actively watches the whole fleet and raises an alert the moment a governed threshold is crossed. These rules read spoke telemetry cross-tenant over Lighthouse and notify the owner through the ag-agentfactory-hub action group. This is capability C-1.4 (Deploy and Rollback auto-triggers) shown as live, always-on guardrails.\n\n**Reads:** the live alert-rule definitions via Azure Resource Graph. armed=true (green) means the guard is active; the **condition** column shows the exact measure and threshold each guard trips on (fleetTokensToday > cap, exceptionsLastHour > floor per spoke, spokeDailyTokens > per-tenant budget); severity and cadence show how fast each guard evaluates."
+        "json": "## Automated governance guardrails\nThe hub does not only record. It actively watches the whole fleet and raises an alert the moment a governed threshold is crossed. These rules read spoke telemetry cross-tenant over Lighthouse and notify the owner through the ag-agentfactory-hub action group. This is the auto-trigger capability (Deploy and Rollback auto-triggers) shown as live, always-on guardrails.\n\n**Reads:** the live alert-rule definitions via Azure Resource Graph. armed=true (green) means the guard is active; the **condition** column shows the exact measure and threshold each guard trips on (fleetTokensToday > cap, exceptionsLastHour > floor per spoke, spokeDailyTokens > per-tenant budget); severity and cadence show how fast each guard evaluates."
       },
       "name": "hdr-guardrails",
       "conditionalVisibilities": [
@@ -1046,7 +1046,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Cost: live LLM token spend by SOP-linked capability\n\n**Reads:** left, token spend per SOP-linked capability (which agent costs the most); right, that spend over time (is it trending up)."
+        "json": "## Cost: live LLM token spend by specification-linked capability\n\n**Reads:** left, token spend per specification-linked capability (which agent costs the most); right, that spend over time (is it trending up)."
       },
       "name": "hdr-tokens",
       "conditionalVisibilities": [
@@ -1061,9 +1061,9 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']), conv=tostring(Attributes['gen_ai.conversation.id']) | where isnotempty(AgentName) | summarize interactions=count(), conversations=dcount(conv), inputTokens=sum(inTok), outputTokens=sum(outTok), totalTokens=sum(inTok)+sum(outTok) by Company, SOP_linked_capability=AgentName | order by totalTokens desc",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']), conv=tostring(Attributes['gen_ai.conversation.id']) | where isnotempty(AgentName) | summarize interactions=count(), conversations=dcount(conv), inputTokens=sum(inTok), outputTokens=sum(outTok), totalTokens=sum(inTok)+sum(outTok) by Company, specification_linked_capability=AgentName | order by totalTokens desc",
         "size": 0,
-        "title": "Token / cost by SOP-linked capability",
+        "title": "Token / cost by specification-linked capability",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "crossComponentResources": [
@@ -1126,7 +1126,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Cost in dollars: estimated run-rate by SOP-linked capability (C-1.5, public list price)\nTokens converted to USD at the **gpt-4o global-standard public list price** ($0.0025 per 1K input, $0.01 per 1K output). Swap in the BU's contracted (EA/discount) rate for the negotiated figure; regional or PTU deployments price differently. `estMonthlyRunRateUSD` = the observed daily spend rate projected to a full 30-day month (so a 2-day demo compares to a monthly bill); the table itself covers whatever the time-range picker is set to.\n\n**Reads:** the same token spend as estimated dollars per capability, plus a projected 30-day (one month) run rate. Priced at public list, not the customer's contracted rate."
+        "json": "## Cost in dollars: estimated run-rate by specification-linked capability (, public list price)\nTokens converted to USD at the **gpt-4o global-standard public list price** ($0.0025 per 1K input, $0.01 per 1K output). Swap in the BU's contracted (EA/discount) rate for the negotiated figure; regional or PTU deployments price differently. `estMonthlyRunRateUSD` = the observed daily spend rate projected to a full 30-day month (so a 2-day demo compares to a monthly bill); the table itself covers whatever the time-range picker is set to.\n\n**Reads:** the same token spend as estimated dollars per capability, plus a projected 30-day (one month) run rate. Priced at public list, not the customer's contracted rate."
       },
       "name": "hdr-cost-usd",
       "conditionalVisibilities": [
@@ -1141,7 +1141,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize inputTokens=sum(inTok), outputTokens=sum(outTok), days=todouble(datetime_diff('day', max(TimeGenerated), min(TimeGenerated)))+1 by Company, SOP_linked_capability=AgentName | extend costRaw=inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k | extend estCostUSD=round(costRaw, 4) | extend estMonthlyRunRateUSD=round(costRaw/days*30, 2) | project Company, SOP_linked_capability, inputTokens, outputTokens, estCostUSD, estMonthlyRunRateUSD | order by estCostUSD desc",
+        "query": "let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize inputTokens=sum(inTok), outputTokens=sum(outTok), days=todouble(datetime_diff('day', max(TimeGenerated), min(TimeGenerated)))+1 by Company, specification_linked_capability=AgentName | extend costRaw=inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k | extend estCostUSD=round(costRaw, 4) | extend estMonthlyRunRateUSD=round(costRaw/days*30, 2) | project Company, specification_linked_capability, inputTokens, outputTokens, estCostUSD, estMonthlyRunRateUSD | order by estCostUSD desc",
         "size": 0,
         "title": "Estimated token cost (USD) and monthly run-rate by capability (gpt-4o public list price)",
         "queryType": 0,
@@ -1273,7 +1273,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Agent activity (SOP-linked capabilities, evaluation)\n\n*Every tile on this tab profiles the governed agents: how often each ran, what steps it took, how deep its conversations were, and whether its answers were evaluated. Use the Business Unit picker at the top to scope to one company; the grids below also carry a Company column so you can read it by BU, then by agent.*\n\n**Reads:** interactions per agent (volume), operations breakdown, conversation depth (turns per session), and eval coverage (what percent of runs were evaluated).\n\n**Operations breakdown** decodes `gen_ai.operation.name`: `invoke_agent` = a run started, `execute_tool` = the agent called a tool (here the SOP retrieval tool), `chat` = a model turn. Those are the three this fleet emits; other OpenTelemetry gen-ai ops (`create_agent`, `embeddings`, `generate_content`) would appear automatically if the agents did them. A high execute_tool-to-invoke_agent ratio means the agents are grounding on tools rather than answering from the model alone, which is the governed-RAG behavior you want.\n\n**Eval coverage** = of all runs, how many carried an evaluation result. Coverage is the 'did we check it' number; the eval-RESULTS tile below is the 'what did the check say' number."
+        "json": "## Agent activity (specification-linked capabilities, evaluation)\n\n*Every tile on this tab profiles the governed agents: how often each ran, what steps it took, how deep its conversations were, and whether its answers were evaluated. Use the Business Unit picker at the top to scope to one company; the grids below also carry a Company column so you can read it by BU, then by agent.*\n\n**Reads:** interactions per agent (volume), operations breakdown, conversation depth (turns per session), and eval coverage (what percent of runs were evaluated).\n\n**Operations breakdown** decodes `gen_ai.operation.name`: `invoke_agent` = a run started, `execute_tool` = the agent called a tool (here the specification retrieval tool), `chat` = a model turn. Those are the three this fleet emits; other OpenTelemetry gen-ai ops (`create_agent`, `embeddings`, `generate_content`) would appear automatically if the agents did them. A high execute_tool-to-invoke_agent ratio means the agents are grounding on tools rather than answering from the model alone, which is the governed-RAG behavior you want.\n\n**Eval coverage** = of all runs, how many carried an evaluation result. Coverage is the 'did we check it' number; the eval-RESULTS tile below is the 'what did the check say' number."
       },
       "name": "hdr-agents",
       "conditionalVisibilities": [
@@ -1362,7 +1362,7 @@
         "version": "KqlItem/1.0",
         "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend AgentName=iif(isempty(tostring(AgentName)), '(unnamed)', tostring(AgentName)) | summarize evaluated=countif(isnotempty(EvaluationExplanation)), toolCalls=countif(isnotempty(ToolCallArguments)), total=count() by Company, AgentName | extend evalCoveragePct=round(100.0*evaluated/total,1) | order by Company asc, total desc",
         "size": 0,
-        "title": "Eval coverage & tool calls by agent (C-1.3)",
+        "title": "Eval coverage & tool calls by agent",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "crossComponentResources": [
@@ -1605,9 +1605,9 @@
     },
     {
       "content": {
-        "json": "## SOP to execution to evaluation lineage (the traceable spine)\n\n**Status: partially live (proxy key).** Grouped by the agent's SOP name today; it auto-swaps to the stamped `sop_id` the moment the agent emits it.\n\n**Reads:** one row per SOP, keyed on the agent's SOP name today and on the stamped `sop_id` the instant the agent emits it, with the runs, evaluations, and tool calls under each SOP. This is the customer's SOP -> agent -> execution -> eval chain on one grid, cross-tenant."
+        "json": "## specification to execution to evaluation lineage (the traceable spine)\n\n**Status: partially live (proxy key).** Grouped by the agent's specification name today; it auto-swaps to the stamped `spec_id` the moment the agent emits it.\n\n**Reads:** one row per specification, keyed on the agent's specification name today and on the stamped `spec_id` the instant the agent emits it, with the runs, evaluations, and tool calls under each specification. This is the customer's specification -> agent -> execution -> eval chain on one grid, cross-tenant."
       },
-      "name": "hdr-sop-lineage",
+      "name": "hdr-spec-lineage",
       "type": 1,
       "conditionalVisibilities": [
         {
@@ -1647,16 +1647,16 @@
           ]
         },
         "visualization": "table",
-        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend sop_id=tostring(Attributes['sop_id']) | extend SOP=iff(isnotempty(sop_id),sop_id,AgentName) | where SOP has 'sop' or isnotempty(sop_id) | summarize agents=dcount(AgentName), interactions=count(), evaluated=countif(isnotempty(EvaluationExplanation)), toolCalls=countif(isnotempty(ToolCallArguments)), lastRun=max(TimeGenerated) by SOP, Company | order by interactions desc",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend spec_id=tostring(Attributes['spec_id']) | extend specification=iff(isnotempty(spec_id),spec_id,AgentName) | where specification has 'spec' or isnotempty(spec_id) | summarize agents=dcount(AgentName), interactions=count(), evaluated=countif(isnotempty(EvaluationExplanation)), toolCalls=countif(isnotempty(ToolCallArguments)), lastRun=max(TimeGenerated) by specification, Company | order by interactions desc",
         "queryType": 0,
         "version": "KqlItem/1.0",
         "crossComponentResources": [
           "${bu1_ws}",
           "${bu2_ws}"
         ],
-        "title": "SOP -> runs -> evaluations -> tool calls (per SOP, per company)"
+        "title": "specification -> runs -> evaluations -> tool calls (per specification, per company)"
       },
-      "name": "sop-lineage-grid",
+      "name": "spec-lineage-grid",
       "type": 3,
       "conditionalVisibilities": [
         {
@@ -1788,7 +1788,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Per-tool outcomes (governed tool use)\n\n**Reads (per agent, for the SOP retrieval tool):** `toolCalls` = how many times the agent called the tool; `withResult` = how many returned anything; `resultCoveragePct` = withResult / toolCalls; `avgDocsRetrieved` = average SOP documents pulled (parsed from `ToolCallResult`); `zeroDocCalls` = calls that ran but retrieved NOTHING.\n\n**Why this is a governance signal, not just observability:** the tool is the RAG grounding step behind every SOP answer. A `zeroDocCall` (or low `resultCoveragePct`) means the agent answered WITHOUT grounding on an SOP, exactly the ungoverned, hallucination-prone behavior the SOP-first architecture exists to prevent. `avgDocsRetrieved` too low can mean weak retrieval; too high can mean noisy context. Live: sop-assistant made 31 tool calls, 24 returned SOPs (77% coverage), avg 2 docs, 0 zero-doc calls, so its answers are grounded. Point at zeroDocCalls = 0 and say 'every SOP answer was backed by a retrieved SOP, and I can prove it cross-tenant.'"
+        "json": "## Per-tool outcomes (governed tool use)\n\n**Reads (per agent, for the specification retrieval tool):** `toolCalls` = how many times the agent called the tool; `withResult` = how many returned anything; `resultCoveragePct` = withResult / toolCalls; `avgDocsRetrieved` = average specification documents pulled (parsed from `ToolCallResult`); `zeroDocCalls` = calls that ran but retrieved NOTHING.\n\n**Why this is a governance signal, not just observability:** the tool is the RAG grounding step behind every specification answer. A `zeroDocCall` (or low `resultCoveragePct`) means the agent answered WITHOUT grounding on a specification, exactly the ungoverned, hallucination-prone behavior the specification-first architecture exists to prevent. `avgDocsRetrieved` too low can mean weak retrieval; too high can mean noisy context. Live: sample-assistant made 31 tool calls, 24 returned specifications (77% coverage), avg 2 docs, 0 zero-doc calls, so its answers are grounded. Point at zeroDocCalls = 0 and say 'every specification answer was backed by a retrieved specification, and I can prove it cross-tenant.'"
       },
       "name": "hdr-tool-outcomes",
       "conditionalVisibilities": [
@@ -1805,7 +1805,7 @@
         "version": "KqlItem/1.0",
         "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | where isnotempty(ToolCallArguments) | extend res=tostring(ToolCallResult) | extend docs=toint(extract(@'Retrieved ([0-9]+)', 1, res)) | summarize toolCalls=count(), withResult=countif(isnotempty(res)), avgDocsRetrieved=round(avg(docs),1), zeroDocCalls=countif(docs==0) by AgentName | extend resultCoveragePct=round(100.0*withResult/toolCalls,1) | project AgentName, toolCalls, withResult, resultCoveragePct, avgDocsRetrieved, zeroDocCalls | order by toolCalls desc",
         "size": 0,
-        "title": "Tool-call outcomes by agent (SOP retrieval)",
+        "title": "Tool-call outcomes by agent (specification retrieval)",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "crossComponentResources": [
@@ -2095,7 +2095,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Gateway coverage: who is on the gateway, and who is not\nThe customer architecture requires a single governed entry point with no back-door paths (A-2.3). This reads live resource state via Azure Resource Graph and lists every governed BU with whether it has an Azure API Management gateway. A BU showing **NOT on gateway** has no gateway resource, so its agent traffic is not routed through the central policy pre-checkt governs at the runtime tool layer instead (see the Posture tab).\n\n**Reads:** one row per governed BU. onGateway = On gateway (an Azure API Management service exists) or NOT on gateway (none); gatewayNames names the gateway resource."
+        "json": "## Gateway coverage: who is on the gateway, and who is not\nThe reference architecture requires a single governed entry point with no back-door paths. This reads live resource state via Azure Resource Graph and lists every governed BU with whether it has an Azure API Management gateway. A BU showing **NOT on gateway** has no gateway resource, so its agent traffic is not routed through the central policy pre-checkt governs at the runtime tool layer instead (see the Posture tab).\n\n**Reads:** one row per governed BU. onGateway = On gateway (an Azure API Management service exists) or NOT on gateway (none); gatewayNames names the gateway resource."
       },
       "name": "hdr-gateway-coverage",
       "conditionalVisibilities": [
@@ -2422,7 +2422,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Latency & reliability (C-1.2 latency metrics)\n\n**Status: app-layer only.** These are app-request durations (dominated by fast 404s), not model-inference latency; true model latency lands with the first clean gateway 200.\n\n**Reads:** left, **app-request** latency percentiles per BU (p50/p95/p99). These are app-layer request durations, which today are dominated by fast 404 failures on the misrouted traffic, not model-inference time, so sub-second here means 'fails fast,' not 'thinks fast.' Thresholds are fixed (green <1s, amber 1-3s, red >3s) so tiny millisecond gaps no longer glow red. True model latency lights up in the gateway LLM log (or AppGenAIContent durations) once a clean 200 lands. Right, the most frequent exceptions by ProblemId."
+        "json": "## Latency & reliability (latency metrics)\n\n**Status: app-layer only.** These are app-request durations (dominated by fast 404s), not model-inference latency; true model latency lands with the first clean gateway 200.\n\n**Reads:** left, **app-request** latency percentiles per BU (p50/p95/p99). These are app-layer request durations, which today are dominated by fast 404 failures on the misrouted traffic, not model-inference time, so sub-second here means 'fails fast,' not 'thinks fast.' Thresholds are fixed (green <1s, amber 1-3s, red >3s) so tiny millisecond gaps no longer glow red. True model latency lights up in the gateway LLM log (or AppGenAIContent durations) once a clean 200 lands. Right, the most frequent exceptions by ProblemId."
       },
       "name": "hdr-lat",
       "conditionalVisibilities": [
@@ -2662,7 +2662,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Business value / ROI (illustrative baseline)\n**Status: illustrative.** Dollars use two labeled placeholder inputs; swap the pilot's real SOP baseline and loaded labor rate for a true number.\n\nQuantifies value from execution telemetry against an SOP baseline, net of AI cost, over the current time-range picker. Two labeled assumptions you replace per pilot: `minutesSavedPerRun` (now 12) and `laborRateUSDPerHour` (now 45). AI cost is the gpt-4o public list price. Per-capability attribution = per SOP-linked agent (A-1.1).\n\n**Reads (per capability):** `Runs` in the window, `hoursSaved` (Runs x minutesSavedPerRun / 60), `laborValueUSD` (hoursSaved x laborRateUSDPerHour), `aiCostUSD` (list price on real tokens), `netValueUSD` (value minus cost), and `roiX` (value / cost). Worked example: sop-assistant, 112 runs x 12 min = 22.4 hours x $45 = $1,008 of labor value, $0.25 of AI cost, so $1,007.75 net at roughly a 4,000x return.\n\n**Set the baseline properly (this is the C-1.5 Value Baseline from the SOP spec):** do a short time-and-motion read on the ONE task each agent automates. `minutesSavedPerRun` = how long that task took a person before the agent (from the SOP author, or a 5-to-10 run stopwatch sample), set PER capability because an SOP lookup and a full quote are not worth the same. `laborRateUSDPerHour` = the BU's fully loaded rate (salary + benefits + overhead), from finance. Optionally net out quality: if the eval tile shows a Quality-concern rate, multiply value by the pass rate so you only bank verified-good runs. Until those two come from the pilot SOP, the dollars stay illustrative."
+        "json": "## Business value / ROI (illustrative baseline)\n**Status: illustrative.** Dollars use two labeled placeholder inputs; swap the pilot's real specification baseline and loaded labor rate for a true number.\n\nQuantifies value from execution telemetry against an specification baseline, net of AI cost, over the current time-range picker. Two labeled assumptions you replace per pilot: `minutesSavedPerRun` (now 12) and `laborRateUSDPerHour` (now 45). AI cost is the gpt-4o public list price. Per-capability attribution = per specification-linked agent.\n\n**Reads (per capability):** `Runs` in the window, `hoursSaved` (Runs x minutesSavedPerRun / 60), `laborValueUSD` (hoursSaved x laborRateUSDPerHour), `aiCostUSD` (list price on real tokens), `netValueUSD` (value minus cost), and `roiX` (value / cost). Worked example: sample-assistant, 112 runs x 12 min = 22.4 hours x $45 = $1,008 of labor value, $0.25 of AI cost, so $1,007.75 net at roughly a 4,000x return.\n\n**Set the baseline properly (this is the Value Baseline from the specification):** do a short time-and-motion read on the ONE task each agent automates. `minutesSavedPerRun` = how long that task took a person before the agent (from the specification author, or a 5-to-10 run stopwatch sample), set PER capability because a specification lookup and a full quote are not worth the same. `laborRateUSDPerHour` = the BU's fully loaded rate (salary + benefits + overhead), from finance. Optionally net out quality: if the eval tile shows a Quality-concern rate, multiply value by the pass rate so you only bank verified-good runs. Until those two come from the pilot specification, the dollars stay illustrative."
       },
       "name": "hdr-roi",
       "conditionalVisibilities": [
@@ -2677,9 +2677,9 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let minutesSavedPerRun = 12.0; let laborRateUSDPerHour = 45.0; let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize Runs=count(), inputTokens=sum(inTok), outputTokens=sum(outTok) by Company, AgentName | extend hoursSaved=round(Runs*minutesSavedPerRun/60,1) | extend laborValueUSD=round(hoursSaved*laborRateUSDPerHour,2) | extend aiCostUSD=round(inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k,2) | extend netValueUSD=round(laborValueUSD-aiCostUSD,2) | extend roiX=round(laborValueUSD/iff(aiCostUSD==0.0,1.0,aiCostUSD),1) | project Company, SOP_linked_capability=AgentName, Runs, hoursSaved, laborValueUSD, aiCostUSD, netValueUSD, roiX | order by netValueUSD desc",
+        "query": "let minutesSavedPerRun = 12.0; let laborRateUSDPerHour = 45.0; let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize Runs=count(), inputTokens=sum(inTok), outputTokens=sum(outTok) by Company, AgentName | extend hoursSaved=round(Runs*minutesSavedPerRun/60,1) | extend laborValueUSD=round(hoursSaved*laborRateUSDPerHour,2) | extend aiCostUSD=round(inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k,2) | extend netValueUSD=round(laborValueUSD-aiCostUSD,2) | extend roiX=round(laborValueUSD/iff(aiCostUSD==0.0,1.0,aiCostUSD),1) | project Company, specification_linked_capability=AgentName, Runs, hoursSaved, laborValueUSD, aiCostUSD, netValueUSD, roiX | order by netValueUSD desc",
         "size": 0,
-        "title": "Business value net of AI cost by SOP-linked capability (illustrative baseline + public list price)",
+        "title": "Business value net of AI cost by specification-linked capability (illustrative baseline + public list price)",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "crossComponentResources": [
@@ -2731,7 +2731,7 @@
     {
       "type": 1,
       "content": {
-        "json": "---\n**Scaling:** each new BU is one more `workspace('...')` block per tile (Azure Monitor allows up to 100 workspaces per cross-workspace query) plus one more entry in the **Business Unit (BU)** dropdown. The auto-discovery version replaces the hardcoded IDs with a workspace-picker parameter fed by Azure Resource Graph, filtered to the `project=demo-agent-factory` tag.\n\n**Traces to customer architecture:** C-1.2 Telemetry & Audit, C-1.5 Business Value & ROI, C-1.1 Agent Collaboration, C-1.3 Evaluation, A-1.1 SOP-linkage, A-2.3 Gateway, B-1.3 / X-2 classification. **Live token/cost comes from `AppGenAIContent.Attributes`** (`gen_ai.usage.*`), not the empty gateway LLM log."
+        "json": "---\n**Scaling:** each new BU is one more `workspace('...')` block per tile (Azure Monitor allows up to 100 workspaces per cross-workspace query) plus one more entry in the **Business Unit (BU)** dropdown. The auto-discovery version replaces the hardcoded IDs with a workspace-picker parameter fed by Azure Resource Graph, filtered to the `project=demo-agent-factory` tag.\n\n**Traces to reference architecture:** Telemetry & Audit, Business Value & ROI, Agent Collaboration, Evaluation, specification linkage, Gateway, / classification. **Live token/cost comes from `AppGenAIContent.Attributes`** (`gen_ai.usage.*`), not the empty gateway LLM log."
       },
       "name": "footer"
     }

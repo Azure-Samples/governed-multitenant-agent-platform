@@ -33,7 +33,7 @@ variable "target_port" {
 
 variable "registry_server" {
   type        = string
-  description = "Login server of the private registry holding the MCP image (e.g. acragentfac<env>.azurecr.io). When set, the app authenticates to it with its system-assigned identity, which must hold AcrPull. Leave null for the public placeholder image."
+  description = "Login server of the private registry holding the MCP image (e.g. acrgovagent<env>.azurecr.io). When set, the app authenticates to it with its system-assigned identity, which must hold AcrPull. Leave null for the public placeholder image."
   default     = null
 }
 

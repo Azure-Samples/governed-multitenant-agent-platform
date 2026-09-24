@@ -1,6 +1,6 @@
 # spoke-harness
 
-The governed harness stamped into each spoke tenant: R1 (APIM AI Gateway) now, with R2 (MCP
+The governed harness stamped into each spoke tenant: the APIM AI Gateway now, with the MCP
 tool + governed read), Key Vault, and the Foundry project to follow. Deploys into the
 Application subscription (spoke-app); env isolation is resource-group level (dev / prod).
 

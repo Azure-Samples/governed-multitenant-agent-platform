@@ -7,7 +7,7 @@
 #
 # Identity requirements (uses the caller's Entra login, az login):
 #   - Monitoring Reader on the spoke workspaces (granted via the hub Lighthouse group
-#     "Agent Factory Hub Telemetry Readers"), and
+#     "Agent Platform Hub Telemetry Readers"), and
 #   - Storage Blob Data Contributor on the audit storage account (shared-key auth is off).
 #
 # Network: the audit account is publicNetworkAccess=Disabled in steady state. For a scheduled

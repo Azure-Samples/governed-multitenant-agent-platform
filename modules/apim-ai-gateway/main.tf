@@ -1,10 +1,10 @@
-# R1 - APIM AI Gateway (component A-2.3): the governed single entry point.
+# APIM AI Gateway: the governed single entry point.
 # Thin AVM-style wrapper over the published AVM APIM module, adding the AI Gateway policy.
-# Absorbs B-2.3 (PEP), B-2.1 (guardrails switch-on), and A-1.3 (policy pre-check).
+# Absorbs (PEP), (guardrails switch-on), and (policy pre-check).
 
 locals {
-  # B-2.3 Runtime Policy Enforcer (PEP): when a PDP URL is supplied, call the external
-  # Policy Decision Point (OPA, A-1.3) for an allow/deny decision on every request.
+  # Runtime Policy Enforcer (PEP): when a PDP URL is supplied, call the external
+  # Policy Decision Point (OPA) for an allow/deny decision on every request.
   # Fail-closed: a non-allow result, a missing decision, or an unreachable PDP returns 403.
   pdp_policy_block = var.pdp_url == null ? "" : <<-XML
         <send-request mode="new" response-variable-name="pdpResponse" timeout="5" ignore-error="true">
@@ -41,14 +41,14 @@ locals {
   XML
 
   # Service-level (global) AI Gateway policy applied to every API.
-  # correlation-id is emitted for R4 telemetry. token-limit, llm-content-safety, and
+  # correlation-id is emitted for telemetry. token-limit, llm-content-safety, and
   # validate-jwt are switched on here; the validate-jwt specifics depend on the identity
   # decision (agent vs OBO vs service) and are marked TODO until that lands (needed Aug 25).
   default_gateway_policy_xml = <<-XML
     <policies>
       <inbound>
         <base />
-        <!-- Emit a correlation id on every request for R4 telemetry -->
+        <!-- Emit a correlation id on every request for telemetry -->
         <set-variable name="correlationId" value="@(context.RequestId.ToString())" />
         <set-header name="x-correlation-id" exists-action="override">
           <value>@((string)context.Variables["correlationId"])</value>
@@ -108,7 +108,7 @@ module "apim" {
     }
   }
 
-  # R4: send gateway telemetry to Log Analytics when a workspace id is supplied
+  # send gateway telemetry to Log Analytics when a workspace id is supplied
   diagnostic_settings = var.log_analytics_workspace_resource_id == null ? {} : {
     to_law = {
       workspace_resource_id = var.log_analytics_workspace_resource_id

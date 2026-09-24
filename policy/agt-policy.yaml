@@ -1,4 +1,4 @@
-# ACS v5 / Agent Governance Toolkit (AGT) policy bundle for the Agent Factory (A-1.3 runtime governance).
+# ACS v5 / Agent Governance Toolkit (AGT) policy bundle for the agent platform (runtime governance).
 #
 # Successor to policy/authz.rego: the same intent (fail-closed, enterprise non-overridable) expressed in
 # AGT's policy format. AGT runs as an IN-PROCESS SDK inside the agent runtime; this bundle is the policy it

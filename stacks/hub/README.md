@@ -1,4 +1,4 @@
-# hub (R4, placeholder)
+# hub (placeholder)
 
 Observability hub in the Management subscription (hub). To be built:
 
@@ -8,4 +8,4 @@ Observability hub in the Management subscription (hub). To be built:
 - Azure Workbook for the run trace and the illustrative ROI tile.
 - Azure Lighthouse delegation to roll up spoke telemetry to the hub.
 
-Maps to R4 (C-1.2 telemetry + audit, C-1.5 ROI). Not yet in the CI/CD matrix.
+Maps to (telemetry + audit, ROI). Not yet in the CI/CD matrix.

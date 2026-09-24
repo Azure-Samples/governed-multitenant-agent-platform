@@ -1,4 +1,4 @@
-# R4 hub dashboard: Azure Monitor Workbook (cross-tenant governance + ROI).
+# Hub dashboard: Azure Monitor Workbook (cross-tenant governance + ROI).
 # Content is authored in hub-governance-workbook.json.tftpl (single source of truth) and rendered
 # via templatefile from local.spokes (see locals.tf) so onboarding a BU is one config entry. No AVM
 # module exists for workbooks (registry checked 2026-08-23); thin AVM-style azapi wrapper. The tiles

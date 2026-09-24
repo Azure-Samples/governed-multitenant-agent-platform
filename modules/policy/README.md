@@ -10,13 +10,13 @@ so `azurerm` is wrapped here with pinned providers, consistent naming, and clean
 
 ## What it maps to
 
-| Concern | Members | Citadel / customer component |
-|---|---|---|
-| Seal the model backends | Cognitive Services managed identity, disable public network, disable local auth; Foundry model eligibility / approved models | Component 3 + 5, X-2 |
-| Keyless + private data | Storage no-shared-key / secure-transfer / min-TLS / no-public; Key Vault soft-delete / RBAC / no-public; AI Search no-public / no-local-auth | Component 2 + 5, X-1 |
-| Gateway + runtime hardening | API Management VNet / no-direct-management; Container Apps no public / no external network | A-2.3, B-1.2 |
-| Observable by default | Key Vault diagnostics to the hub workspace (opt-in) | C-1.2 |
-| Fleet hygiene | Allowed locations (data residency) | C-1.5, data residency |
+| Concern | Members |
+|---|---|
+| Seal the model backends | Cognitive Services managed identity, disable public network, disable local auth; Foundry model eligibility / approved models |
+| Keyless + private data | Storage no-shared-key / secure-transfer / min-TLS / no-public; Key Vault soft-delete / RBAC / no-public; AI Search no-public / no-local-auth |
+| Gateway + runtime hardening | API Management VNet / no-direct-management; Container Apps no public / no external network |
+| Observable by default | Key Vault diagnostics to the hub workspace (opt-in) |
+| Fleet hygiene | Allowed locations (data residency) |
 
 All GUIDs were verified against the live built-in catalogue on 2026-09-17.
 

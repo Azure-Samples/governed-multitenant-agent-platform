@@ -19,7 +19,7 @@ gateway_state_key                  = "spoke-gateway-<yourname>.tfstate"
 # ─── MCP tool image (cap 8: governed classification-aware read) ─────────────
 # Placeholder hello-world until the real image is built + pushed to the spoke ACR
 # (agent/2-mcp-tools/build_and_push.ps1), then set BOTH and re-apply to flip ca-mcp:
-# mcp_tool_image       = "acragentfacdev.azurecr.io/governed-sop-read:v1"
+# mcp_tool_image       = "acrgovagentdev.azurecr.io/governed-read:v1"
 # mcp_tool_target_port = 8080
 
 # ─── Cross-tenant rollup to the hub (recommended) ───────────────────────────
@@ -27,4 +27,4 @@ gateway_state_key                  = "spoke-gateway-<yourname>.tfstate"
 enable_lighthouse       = true
 hub_tenant_id           = "00000000-0000-0000-0000-000000000000"
 lighthouse_principal_id = "99999999-9999-9999-9999-999999999999"
-# lighthouse_principal_display_name = "Agent Factory Hub"  # default
+# lighthouse_principal_display_name = "agent platform Hub"  # default

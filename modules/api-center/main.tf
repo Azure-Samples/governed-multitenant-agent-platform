@@ -1,4 +1,4 @@
-# A-2.2 Capability Catalog & Discovery (Azure API Center).
+# Capability Catalog & Discovery (Azure API Center).
 # No published AVM module exists yet (registry checked 2026-08-23). This is a thin
 # AVM-style azapi wrapper (standard name/location/tags/interfaces). Swap to the AVM
 # module when it ships.

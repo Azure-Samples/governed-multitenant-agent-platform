@@ -22,7 +22,7 @@ variable "log_analytics_workspace_resource_id" {
 variable "display_name" {
   type        = string
   description = "Workbook display name."
-  default     = "demo agent factory dashboard"
+  default     = "governed agent platform dashboard"
 }
 
 variable "tags" {
