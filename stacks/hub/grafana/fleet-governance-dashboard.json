@@ -1,0 +1,252 @@
+{
+  "uid": "agentfactory-fleet-hub",
+  "title": "Agent Governance - Fleet (Hub)",
+  "tags": ["agent-factory", "agent-governance", "fleet"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "5m",
+  "time": { "from": "now-90d", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Fleet coverage - all business units at a glance",
+      "description": "One row per business unit. Different BUs emit different signals; all governed from one pane.",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', S='Interactions', v=1.0), (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', S='Tokens', v=todouble(toint(Attributes['gen_ai.usage.input_tokens'])+toint(Attributes['gen_ai.usage.output_tokens']))), (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').ApiManagementGatewayLogs | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', S='GatewayCalls', v=1.0), (workspace('/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/rg-dev/providers/Microsoft.OperationalInsights/workspaces/law-bu2').ApiManagementGatewayLogs | where $__timeFilter(TimeGenerated) | extend BU='Business unit 2', S='GatewayCalls', v=1.0), (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppExceptions | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', S='Exceptions', v=1.0), (workspace('/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/rg-dev/providers/Microsoft.OperationalInsights/workspaces/law-bu2').AppExceptions | where $__timeFilter(TimeGenerated) | extend BU='Business unit 2', S='Exceptions', v=1.0), (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppEvents | where Name == 'gen_ai.evaluation.result' | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', S='Evals', v=1.0) | summarize Interactions=sumif(v, S=='Interactions'), Tokens=sumif(v, S=='Tokens'), GatewayCalls=sumif(v, S=='GatewayCalls'), Enforcement=sumif(v, S=='Enforcement'), Exceptions=sumif(v, S=='Exceptions'), Evals=sumif(v, S=='Evals') by BU | order by BU asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Fleet agent interactions",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | extend BU='Business unit 1') | where $__timeFilter(TimeGenerated) | summarize Interactions=count()"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Fleet tokens (instrumented)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | where $__timeFilter(TimeGenerated) | extend inT=toint(Attributes['gen_ai.usage.input_tokens']), outT=toint(Attributes['gen_ai.usage.output_tokens']) | summarize Tokens=sum(inT)+sum(outT)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "AOAI native calls (Business unit 1)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AzureMetrics | where $__timeFilter(TimeGenerated) | where ResourceProvider == 'MICROSOFT.COGNITIVESERVICES' | summarize Calls=sumif(Total, MetricName=='TotalCalls')"
+          }
+        }
+      ]
+    },
+
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Agent activity by business unit",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "time_series",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | extend BU='Business unit 1') | where $__timeFilter(TimeGenerated) | summarize Interactions=count() by BU, bin(TimeGenerated, 1h) | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "AOAI native platform metrics (Business unit 1, no instrumentation)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AzureMetrics | where $__timeFilter(TimeGenerated) | where ResourceProvider == 'MICROSOFT.COGNITIVESERVICES' | summarize TotalTokens=sumif(Total, MetricName=='TotalTokens'), TotalCalls=sumif(Total, MetricName=='TotalCalls'), AvgLatencyMs=round(avgif(Average, MetricName=='Latency'),0) by Resource | order by TotalTokens desc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Evaluation scores by evaluator (Business unit 1)",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 18 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppEvents | where $__timeFilter(TimeGenerated) | where Name == 'gen_ai.evaluation.result' | extend p=parse_json(tostring(Properties)) | extend Evaluator=tostring(p['gen_ai.evaluation.name']), Score=toreal(p['gen_ai.evaluation.score.value']), Label=tostring(p['gen_ai.evaluation.score.label']) | summarize Runs=count(), AvgScore=round(avg(Score),2), Passed=countif(Label=='pass') by Evaluator | order by Evaluator asc"
+          }
+        }
+      ]
+    },
+
+
+
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Exceptions by business unit",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 25 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "time_series",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppExceptions | extend BU='Business unit 1'), (workspace('/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/rg-dev/providers/Microsoft.OperationalInsights/workspaces/law-bu2').AppExceptions | extend BU='Business unit 2') | where $__timeFilter(TimeGenerated) | summarize Exceptions=count() by BU, bin(TimeGenerated, 1h) | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Gateway response codes by business unit",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 25 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').ApiManagementGatewayLogs | extend BU='Business unit 1'), (workspace('/subscriptions/33333333-3333-3333-3333-333333333333/resourceGroups/rg-dev/providers/Microsoft.OperationalInsights/workspaces/law-bu2').ApiManagementGatewayLogs | extend BU='Business unit 2') | where $__timeFilter(TimeGenerated) | summarize Calls=count() by BU, ResponseCode=tostring(ResponseCode) | order by BU asc, Calls desc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Model-seal posture by business unit (OPEN BACK DOOR = public network on)",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 32 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Resource Graph",
+          "subscriptions": ["22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"],
+          "azureResourceGraph": {
+            "resultFormat": "table",
+            "query": "resources | where type == 'microsoft.cognitiveservices/accounts' | extend BU=case(subscriptionId=='22222222-2222-2222-2222-222222222222','Business unit 1',subscriptionId=='33333333-3333-3333-3333-333333333333','Business unit 2','Other') | summarize accounts=count(), openBackDoor=countif(tostring(properties.publicNetworkAccess)=='Enabled'), sealed=countif(tostring(properties.publicNetworkAccess)=='Disabled') by BU | extend Posture=iff(openBackDoor>0,'OPEN BACK DOOR','Sealed') | order by BU asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Models in use by business unit",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 32 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "union isfuzzy=true (workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | where $__timeFilter(TimeGenerated) | extend BU='Business unit 1', Model=tostring(Attributes['gen_ai.response.model'])) | where isnotempty(Model) | summarize Calls=count() by BU, Model | order by Calls desc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Tool-call grounding (Business unit 1 SOP retrieval)",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 32 },
+      "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "azure-monitor-oob" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1"],
+            "resultFormat": "table",
+            "query": "workspace('/subscriptions/22222222-2222-2222-2222-222222222222/resourceGroups/rg-prod/providers/Microsoft.OperationalInsights/workspaces/law-bu1').AppGenAIContent | where $__timeFilter(TimeGenerated) | where isnotempty(ToolCallResult) or isnotempty(ToolCallArguments) | summarize toolCalls=count(), withResult=countif(isnotempty(ToolCallResult)) by AgentName=tostring(AgentName) | extend resultCoveragePct=round(100.0*withResult/toolCalls,0) | order by toolCalls desc"
+          }
+        }
+      ]
+    }
+  ]
+}

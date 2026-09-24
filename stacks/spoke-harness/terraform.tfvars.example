@@ -1,0 +1,30 @@
+# ─── spoke-harness: per-team-member values ───────────────────────────────────
+# Copy to terraform.tfvars (git-ignored). Deploy spoke-gateway FIRST.
+#
+# This stack adds the custom seams (OPA PDP, MCP tool, ACR, Lighthouse rollup)
+# on top of the gateway that spoke-gateway deployed.
+
+subscription_id = "<your-spoke-subscription-id>"   # same sub as spoke-gateway
+tenant_id       = "<your-entra-tenant-id>"         # az account show --query tenantId -o tsv
+location        = "eastus2"
+environment     = "dev"
+
+# ─── Remote state of spoke-gateway (so this stack can read its outputs) ──────
+# Use the same backend config you gave spoke-gateway during `terraform init`.
+gateway_state_resource_group_name  = "<state-rg>"
+gateway_state_storage_account_name = "<state-sa>"
+gateway_state_key                  = "spoke-gateway-<yourname>.tfstate"
+# gateway_state_container_name     = "tfstate"   # default
+
+# ─── MCP tool image (cap 8: governed classification-aware read) ─────────────
+# Placeholder hello-world until the real image is built + pushed to the spoke ACR
+# (agent/2-mcp-tools/build_and_push.ps1), then set BOTH and re-apply to flip ca-mcp:
+# mcp_tool_image       = "acragentfacdev.azurecr.io/governed-sop-read:v1"
+# mcp_tool_target_port = 8080
+
+# ─── Cross-tenant rollup to the hub (recommended) ───────────────────────────
+# Set these to grant the hub read-only access so telemetry rolls up centrally.
+enable_lighthouse       = true
+hub_tenant_id           = "00000000-0000-0000-0000-000000000000"
+lighthouse_principal_id = "99999999-9999-9999-9999-999999999999"
+# lighthouse_principal_display_name = "Agent Factory Hub"  # default

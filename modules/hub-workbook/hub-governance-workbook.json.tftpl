@@ -1,0 +1,2743 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Agent Factory: Cross-Tenant Governance & ROI\nMaps to the customer architecture's Operations plane: **C-1.2 Telemetry & Audit** (traces and correlation, token cost, classification-aware redaction, and the immutable audit store), **C-1.5 Business Value & ROI** (per-capability attribution, BU-level rollup), **C-1.3 Evaluation**, **B-1.3 / X-2 classification enforcement**, **A-1.1 SOP-linkage**, and **A-2.3 Gateway**. Coverage varies by tenant (BU) and by how far each spoke is wired; every tile states what is live versus what is a wiring gap.\n\nRead from the hub over Azure Lighthouse. **Nothing is copied to the hub** (this workspace holds no telemetry of its own); every tile queries the spokes' own Log Analytics workspaces cross-workspace. Counts, tokens, and latency only, never message content.\n\nEach governed **tenant** is a **business unit (BU)**. Use the **BU** picker to drill into one, or leave **All** for the whole fleet."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "p-time",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time range",
+            "type": 4,
+            "value": {
+              "durationMs": 2592000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          },
+          {
+            "id": "p-company",
+            "version": "KqlParameterItem/1.0",
+            "name": "Company",
+            "label": "Tenant (BU)",
+            "type": 2,
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": ${company_options}
+          },
+          {
+            "id": "p-workspaces",
+            "version": "KqlParameterItem/1.0",
+            "name": "Workspaces",
+            "label": "Governed spoke workspaces (auto-discovered)",
+            "type": 5,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "resources | where type =~ 'microsoft.operationalinsights/workspaces' | where tags['workload'] =~ 'agent-factory' | project value = id, label = name",
+            "crossComponentResources": [
+              "${hub_sub}",
+              "${bu2_sub}",
+              "${bu1_sub}"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "p-tab",
+            "version": "KqlParameterItem/1.0",
+            "name": "selectedTab",
+            "label": "View",
+            "type": 2,
+            "isRequired": true,
+            "value": "overview",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\":\"overview\",\"label\":\"1. Overview - fleet at a glance\",\"selected\":true},{\"value\":\"posture\",\"label\":\"2. Posture & Compliance - governance by construction\"},{\"value\":\"agents\",\"label\":\"3. Agents & Quality - what the agents do\"},{\"value\":\"cost\",\"label\":\"4. Cost & ROI - the value\"},{\"value\":\"gateway\",\"label\":\"5. Gateway & Security - reliability\"},{\"value\":\"deepdive\",\"label\":\"6. Deep dive - engineer detail\"}]"
+          }
+        ]
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinksItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "tab-ov",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Overview",
+            "subTarget": "overview",
+            "style": "link"
+          },
+          {
+            "id": "tab-posture",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Posture & Compliance",
+            "subTarget": "posture",
+            "style": "link"
+          },
+          {
+            "id": "tab-agents",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Agents & Quality",
+            "subTarget": "agents",
+            "style": "link"
+          },
+          {
+            "id": "tab-cost",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Cost & ROI",
+            "subTarget": "cost",
+            "style": "link"
+          },
+          {
+            "id": "tab-gw",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Gateway & Security",
+            "subTarget": "gateway",
+            "style": "link"
+          },
+          {
+            "id": "tab-deepdive",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Deep dive",
+            "subTarget": "deepdive",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "tabs"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Fleet at a glance\n\n**Reads:** the fleet activity totals for the selected period: total LLM tokens, agent interactions, distinct agents, gateway calls, and exceptions across every governed BU. These are activity and health counts, not targets."
+      },
+      "name": "hdr-kpi",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (union isfuzzy=true (workspace('${bu1_ws}').AppGenAIContent | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppGenAIContent | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend t=toint(Attributes['gen_ai.usage.input_tokens'])+toint(Attributes['gen_ai.usage.output_tokens']) | summarize Metric='LLM tokens (agent path)', Value=sum(t)), (union isfuzzy=true (workspace('${bu1_ws}').AppGenAIContent | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppGenAIContent | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize Metric='Agent interactions', Value=count()), (union isfuzzy=true (workspace('${bu1_ws}').AppGenAIContent | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppGenAIContent | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize Metric='Distinct agents', Value=dcount(AgentName)), (union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize Metric='Gateway calls', Value=count()), (union isfuzzy=true (workspace('${bu2_ws}').AppExceptions | extend Company='Business unit 2'), (workspace('${bu1_ws}').AppExceptions | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize Metric='Exceptions', Value=count())",
+        "size": 3,
+        "title": "Fleet at a glance",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "Metric"
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "blue"
+            }
+          },
+          "showBorder": true
+        }
+      },
+      "name": "kpi-tiles",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Coverage by business unit (BU): every governed tenant on one grid\nThe whole federation in one view. Each subsidiary is a row; each column is a class of governance signal the hub collects cross-tenant over Azure Lighthouse. A greener cell means that BU is actively producing that signal. The subsidiaries run different stacks at different stages, so they light up different columns, and the hub governs all of them from this single pane, with no data copied to the hub.\n\n**Reads:** live counts per BU for agent content (Copilot Studio / Foundry agent telemetry), agent operations (Foundry Agent Service spans), gateway calls (the Azure API Management gateway), and runtime classification-enforcement decisions, plus when each BU last reported. Different columns light up for different BUs by design; that is the fleet at different stages of maturity, all governed from one pane.\n\n**Where you do NOT see a signal:** a 0 in any cell means that BU is not emitting that signal yet, a gap you can see here rather than one hidden in an audit. Business unit 2 emits no agent content or enforcement (gateway-only), and each cell turns green the moment that BU starts reporting."
+      },
+      "name": "hdr-fleet-coverage-matrix",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AppGenAIContent | where TimeGenerated {TimeRange} | extend BU='Business unit 1', sig='agentContent'), (workspace('${bu2_ws}').AppGenAIContent | where TimeGenerated {TimeRange} | extend BU='Business unit 2', sig='agentContent'), (workspace('${bu2_ws}').ApiManagementGatewayLogs | where TimeGenerated {TimeRange} | extend BU='Business unit 2', sig='gateway'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | where TimeGenerated {TimeRange} | extend BU='Business unit 1', sig='gateway') | where '{Company}'=='All' or BU=='{Company}' | summarize agentContent=countif(sig=='agentContent'), agentOperations=countif(sig=='agentOps'), gatewayCalls=countif(sig=='gateway'), enforcementDecisions=countif(sig=='enforcement'), lastReported=max(TimeGenerated) by BU | order by BU asc",
+        "size": 0,
+        "title": "Coverage by business unit (BU): what each governed tenant reports",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "agentContent",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "agentOperations",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "gatewayCalls",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "enforcementDecisions",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "fleet-coverage-matrix",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Copilot Studio agents across the fleet (cross-tenant)\n\n**Every tenant (BU) is governed** (proven fleet-wide on the tenant coverage matrix above). This scorecard specifically shows the Copilot Studio agent-content signal, so it lists the BUs running Copilot Studio agents today, not the only governed ones.\n\n**Reads:** every enrolled company on one line, agents, interactions, token spend, tool calls, and how many runs were evaluated. This is the cross-tenant view a single-organization tool cannot produce: a governed agent *fleet* across separate company tenants, from one pane, with no data moved.\n\n**Why only Business unit 1 shows here today:** this scorecard reads the Copilot Studio agent-content signal (`AppGenAIContent`; these agents are authored in Copilot Studio but run on the Azure AI Foundry model runtime, so the raw telemetry provider reads `microsoft.foundry`), which only Business unit 1's spoke emits so far. The other BUs are still governed, they just report different signals: Business unit 2 is a gateway-only spoke with no agent yet (see the tenant coverage matrix above). All three roll up to the hub."
+      },
+      "name": "hdr-fleet-scorecard",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | summarize agents=dcount(AgentName), interactions=count(), totalTokens=sum(inTok)+sum(outTok), toolCalls=countif(isnotempty(ToolCallArguments)), evaluated=countif(isnotempty(EvaluationExplanation)) by Company | order by interactions desc",
+        "size": 0,
+        "title": "Governed Copilot Studio agent fleet: agents, activity, spend, evaluation per company",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "agents",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "interactions",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "totalTokens",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "evaluated",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "fleet-scorecard-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "content": {
+        "json": "## Copilot Studio agent identities per company (identity plane)\n\n**Status: partially live.** Agent-identity counts are live; the sign-in and risk columns read 0 until each tenant exports its Entra agent logs.\n\n**Reads:** the distinct agent identities the hub governs in each company (live from agent telemetry today), plus their sign-in volume and failures. The agent-identity count is live now; the sign-in and failure columns fill the moment each tenant exports its Entra logs (they read 0 until then, by design, not a bug). This is the identity plane AWS and Salesforce cannot show across separate companies.\n\n**Why only Business unit 1 shows here today:** the agent-identity count is derived from that same Copilot Studio signal, so only Business unit 1 is counted yet. Business unit 2 (gateway-only, no agent) is governed but not yet reflected in this tile."
+      },
+      "name": "hdr-identity-scorecard",
+      "type": 1,
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "content": {
+        "size": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "formatOptions": {
+                "palette": "blue"
+              },
+              "columnMatch": "governedAgentIdentities",
+              "formatter": 8
+            },
+            {
+              "formatOptions": {
+                "palette": "blue"
+              },
+              "columnMatch": "agentRuns",
+              "formatter": 8
+            },
+            {
+              "formatOptions": {
+                "palette": "green"
+              },
+              "columnMatch": "agentSignIns",
+              "formatter": 8
+            },
+            {
+              "formatOptions": {
+                "palette": "red"
+              },
+              "columnMatch": "failedSignIns",
+              "formatter": 8
+            }
+          ]
+        },
+        "visualization": "table",
+        "query": "let signins = union isfuzzy=true (workspace('${bu1_ws}').AADServicePrincipalSignInLogs | extend Company='Business unit 1'),(workspace('${bu2_ws}').AADServicePrincipalSignInLogs | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | summarize agentSignIns=count(), failedSignIns=countif(ResultType!=0) by Company; union isfuzzy=true (workspace('${bu1_ws}').AppGenAIContent | extend Company='Business unit 1'),(workspace('${bu2_ws}').AppGenAIContent | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize governedAgentIdentities=dcount(AgentId), agentRuns=count(), lastActivity=max(TimeGenerated) by Company | join kind=leftouter signins on Company | project Company, governedAgentIdentities, agentRuns, agentSignIns=coalesce(agentSignIns,0), failedSignIns=coalesce(failedSignIns,0), lastActivity | order by agentRuns desc",
+        "queryType": 0,
+        "version": "KqlItem/1.0",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "title": "Governed Copilot Studio agent identities, sign-ins, failures per company"
+      },
+      "name": "identity-scorecard-grid",
+      "type": 3,
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Fleet health: is every BU sealed? (governance traffic light)\n\n**Reads:** one row per BU. sealedModels = model backends that are private (no public path); openModels > 0 flips the BU to OPEN BACK DOOR (red). This is the at-a-glance health an exec reads before the detail grids.\n\n**Captured by:** Azure Resource Graph reading the live control-plane state of each BU's Azure AI / Cognitive Services accounts (`microsoft.cognitiveservices/accounts`, property `publicNetworkAccess`), cross-tenant over Lighthouse. This is resource posture, so no agent needs to be running for the hub to attest it.\n\n**What the terms mean:** an *open model* is an AI model backend (an Azure AI / Cognitive Services account) whose `publicNetworkAccess` is Enabled, so it can be called directly from the public internet, not only through the governed gateway. *OPEN BACK DOOR* means the BU has at least one open model, so a caller could reach the model directly and bypass the gateway, policy, and guardrails. *Sealed* means `publicNetworkAccess = Disabled`, so the governed path is the only way in."
+      },
+      "name": "hdr-fleet-health",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.cognitiveservices/accounts' | extend BU = case(subscriptionId=='33333333-3333-3333-3333-333333333333','Business unit 2', subscriptionId=='22222222-2222-2222-2222-222222222222','Business unit 1', subscriptionId) | where '{Company}'=='All' or BU=='{Company}' | summarize models=count(), sealedModels=countif(tostring(properties.publicNetworkAccess)=~'Disabled'), openModels=countif(tostring(properties.publicNetworkAccess)!~'Disabled') by BU | extend posture=iff(openModels==0,'Sealed','OPEN BACK DOOR') | project BU, models, sealedModels, openModels, posture | order by openModels desc",
+        "size": 0,
+        "title": "Fleet health: model backends sealed per BU",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${bu2_sub}",
+          "${bu1_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "posture",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Sealed",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "openModels",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "0",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "fleet-health-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Signal health and freshness (is every BU still reporting?)\n\n**Reads:** per BU and per telemetry table, how many rows arrived in range, the most recent row, minutes since, and Fresh/Stale. This is the tile that surfaces 'gateway is all 404', 'a BU stopped sending', or 'Business unit 2 has no agent telemetry' at a glance. A missing row means that BU has no data in that table at all.\n\n**Signals shown, and where each comes from:** `ApiManagementGatewayLogs` = every call through the Azure API Management gateway (Business unit 2 and Business unit 1), so it shows routing and failures. `AppRequests` and `AppExceptions` = Application Insights request and error telemetry from each spoke's workloads. `AppGenAIContent` = the Copilot Studio agent runtime tracing (Business unit 1, on the Foundry model runtime): one row per agent interaction with tokens, tools, and evaluations. Every one is emitted by the spoke's own workload into the spoke's Log Analytics workspace, and the hub reads them cross-tenant over Azure Lighthouse; nothing is copied to the hub."
+      },
+      "name": "hdr-signal-health",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend BU='Business unit 2', Signal='ApiManagementGatewayLogs'), (workspace('${bu2_ws}').AppRequests | extend BU='Business unit 2', Signal='AppRequests'), (workspace('${bu2_ws}').AppExceptions | extend BU='Business unit 2', Signal='AppExceptions'), (workspace('${bu2_ws}').AppGenAIContent | extend BU='Business unit 2', Signal='AppGenAIContent'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend BU='Business unit 1', Signal='ApiManagementGatewayLogs'), (workspace('${bu1_ws}').AppRequests | extend BU='Business unit 1', Signal='AppRequests'), (workspace('${bu1_ws}').AppExceptions | extend BU='Business unit 1', Signal='AppExceptions'), (workspace('${bu1_ws}').AppGenAIContent | extend BU='Business unit 1', Signal='AppGenAIContent') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or BU=='{Company}' | summarize rows=count(), lastSeen=max(TimeGenerated) by BU, Signal | extend minsSinceLastRow=datetime_diff('minute', now(), lastSeen) | extend Freshness=iff(minsSinceLastRow<=1440,'Fresh (<24h)','Stale (>24h)') | project BU, Signal, rows, lastSeen, minsSinceLastRow, Freshness | order by BU asc, Signal asc",
+        "size": 0,
+        "title": "Signal health: rows and freshness per BU and table",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Freshness",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Fresh (<24h)",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "rows",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "signal-health-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Automated governance guardrails\nThe hub does not only record. It actively watches the whole fleet and raises an alert the moment a governed threshold is crossed. These rules read spoke telemetry cross-tenant over Lighthouse and notify the owner through the ag-agentfactory-hub action group. This is capability C-1.4 (Deploy and Rollback auto-triggers) shown as live, always-on guardrails.\n\n**Reads:** the live alert-rule definitions via Azure Resource Graph. armed=true (green) means the guard is active; the **condition** column shows the exact measure and threshold each guard trips on (fleetTokensToday > cap, exceptionsLastHour > floor per spoke, spokeDailyTokens > per-tenant budget); severity and cadence show how fast each guard evaluates."
+      },
+      "name": "hdr-guardrails",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.insights/scheduledqueryrules' | extend guards = case(name contains 'spoke', 'Per-tenant runaway token spend', name contains 'token', 'Fleet-wide token spend / cost cap', name contains 'exception', 'Agent error / reliability spike (fleet-wide)', 'Governed threshold') | extend severity = case(toint(properties.severity)==0,'Sev0 Critical', toint(properties.severity)==1,'Sev1 Error', toint(properties.severity)==2,'Sev2 Warning', toint(properties.severity)==3,'Sev3 Info', strcat('Sev', tostring(properties.severity))) | extend freqTxt = case(tostring(properties.evaluationFrequency)=='PT5M','5 min', tostring(properties.evaluationFrequency)=='PT15M','15 min', tostring(properties.evaluationFrequency)=='PT1H','1 hour', tostring(properties.evaluationFrequency)) | extend winTxt = case(tostring(properties.windowSize)=='PT15M','15 min', tostring(properties.windowSize)=='PT1H','1 hour', tostring(properties.windowSize)=='P1D','1 day', tostring(properties.windowSize)=='P2D','2 days', tostring(properties.windowSize)) | extend cadence = strcat('every ', freqTxt, ', window ', winTxt) | extend condition = strcat(tostring(properties.criteria.allOf[0].metricMeasureColumn), ' ', iff(tostring(properties.criteria.allOf[0].operator)=='GreaterThan','>', tostring(properties.criteria.allOf[0].operator)), ' ', tostring(properties.criteria.allOf[0].threshold)) | extend armed = tostring(properties.enabled) | project rule=name, guards, condition, severity, cadence, armed, notifies='ag-agentfactory-hub' | order by rule asc",
+        "size": 0,
+        "title": "Automated guardrails armed on the fleet (alert rules)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${hub_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "armed",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "true",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "guardrails-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Live guardrail alerts (what has actually fired)\n**In one line:** this is the hub's alarm log. Each row is one time a guard tripped and emailed the owner. Red (Fired) means it is going off now; green (Resolved) means it already cleared. An empty grid means nothing is breaching right now, which is also healthy.\n\n**What the rows are:** every row is the same reliability guard, `alert-fleet-exception-spike`. It watches each company's agent error rate from the hub and raises an alert when a company crosses the line for an hour. For the demo it is set to a low bar (more than 5 errors an hour), and Business unit 2's spoke runs about 25 an hour, so it trips on normal demo noise and then auto-clears when the rate drops (the red-then-green you see repeating). In production you set the bar higher (say 100 to 200 an hour) so it only fires on a real spike.\n\n**Why it matters:** the hub is acting, not just watching. It catches a problem inside a separate company's tenant and raises a real, owner-notified alert, all from one pane."
+      },
+      "name": "hdr-fired-alerts",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "alertsmanagementresources | where type =~ 'microsoft.alertsmanagement/alerts' | extend ruleName = tostring(split(tostring(properties.essentials.alertRule), '/')[-1]) | extend guards = case(ruleName contains 'spoke', 'Per-tenant token spend', ruleName contains 'token', 'Fleet token spend', ruleName contains 'exception', 'Agent error spike', 'Governed threshold') | extend state = tostring(properties.essentials.monitorCondition) | extend severity = tostring(properties.essentials.severity) | extend firedUtc = tostring(properties.essentials.startDateTime) | project rule=ruleName, guards, state, severity, firedUtc | order by firedUtc desc | take 20",
+        "size": 0,
+        "title": "Live guardrail alerts fired from the hub (cross-tenant)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${hub_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "state",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Fired",
+                    "representation": "redBright",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Resolved",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "yellow",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "fired-alerts-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## BU-level rollup\n\n**Reads:** the same governance signals for every BU, broken out one column per signal type (gateway calls, gateway failures, app requests, exceptions, agent activity, tool calls, evals, enforcement) with one row per company. A 0 means that BU does not emit that signal (Business unit 2 runs no agents, so agent / tool / eval are 0). Compare companies down the rows, signal types across the columns."
+      },
+      "name": "hdr-rollup",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 2', Signal='1 Gateway calls'), (workspace('${bu2_ws}').ApiManagementGatewayLogs | where TimeGenerated {TimeRange} and ResponseCode>=400 | summarize v=count() | extend Company='Business unit 2', Signal='2 Gateway failures'), (workspace('${bu2_ws}').AppRequests | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 2', Signal='3 App requests'), (workspace('${bu2_ws}').AppExceptions | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 2', Signal='4 Exceptions'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 1', Signal='1 Gateway calls'), (workspace('${bu1_ws}').AppRequests | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 1', Signal='3 App requests'), (workspace('${bu1_ws}').AppExceptions | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 1', Signal='4 Exceptions'), (workspace('${bu1_ws}').AppGenAIContent | where TimeGenerated {TimeRange} | summarize v=count() | extend Company='Business unit 1', Signal='5 Agent interactions'), (workspace('${bu1_ws}').AppGenAIContent | where TimeGenerated {TimeRange} and isnotempty(ToolCallArguments) | summarize v=count() | extend Company='Business unit 1', Signal='6 Tool calls'), (workspace('${bu1_ws}').AppGenAIContent | where TimeGenerated {TimeRange} and isnotempty(EvaluationExplanation) | summarize v=count() | extend Company='Business unit 1', Signal='7 Evals') | where '{Company}'=='All' or Company=='{Company}' | summarize ['Gateway calls']=sum(iff(Signal endswith 'Gateway calls', v, 0)), ['Gateway failures']=sum(iff(Signal endswith 'Gateway failures', v, 0)), ['App requests']=sum(iff(Signal endswith 'App requests', v, 0)), ['Exceptions']=sum(iff(Signal endswith 'Exceptions', v, 0)), ['Agent activity']=sum(iff(Signal endswith 'Agent interactions' or Signal endswith 'Agent operations', v, 0)), ['Tool calls']=sum(iff(Signal endswith 'Tool calls', v, 0)), ['Evals']=sum(iff(Signal endswith 'Evals', v, 0)), ['Enforcement']=sum(iff(Signal endswith 'Enforcement decisions', v, 0)) by Company | order by Company asc",
+        "size": 0,
+        "title": "Every BU's governance signals side by side",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "visualization": "table"
+      },
+      "name": "rollup-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Fleet coverage: enrolled BUs (auto-discovery proof)\nEach governed BU appears here the moment its Lighthouse delegation lands, read live cross-tenant via Azure Resource Graph. This is the workspace-picker source the scaling story is built on: one row per enrolled BU plus the hub.\n\n**Reads:** one row per governed workspace, i.e. which companies are enrolled and reporting, plus the hub. tag_workload shows the agent-factory tag each enrolled workspace carries."
+      },
+      "name": "hdr-fleet",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.operationalinsights/workspaces' | where tags['workload'] =~ 'agent-factory' | extend BU = case(subscriptionId=='33333333-3333-3333-3333-333333333333','Business unit 2', subscriptionId=='22222222-2222-2222-2222-222222222222','Business unit 1', subscriptionId=='11111111-1111-1111-1111-111111111111','Hub', subscriptionId) | where BU !~ subscriptionId | where '{Company}'=='All' or BU=='{Company}' or BU=='Hub' | project BU, workspace=name, resourceGroup, tag_workload=tostring(tags['workload']) | order by BU asc",
+        "size": 0,
+        "title": "Governed workspaces discovered cross-tenant (one row per enrolled BU + hub)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${hub_sub}",
+          "${bu2_sub}",
+          "${bu1_sub}"
+        ],
+        "visualization": "table"
+      },
+      "name": "fleet-coverage",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Governance posture: no back door, attested from the hub (correct-by-construction)\nThe model backends must be private (`publicNetworkAccess = Disabled`) and key-less (`disableLocalAuth = true`) so the gateway is the only reachable path. This reads live resource state cross-tenant via Azure Resource Graph, so a mis-wired BU shows up red here, not in a quarterly audit.\n\n**Reads:** each BU AI account and whether it is sealed. publicNetworkAccess Disabled (green) is good, Enabled (red) is an open back door; localAuthDisabled true means API keys are off."
+      },
+      "name": "hdr-posture",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.cognitiveservices/accounts' | extend BU = case(subscriptionId=='33333333-3333-3333-3333-333333333333','Business unit 2', subscriptionId=='22222222-2222-2222-2222-222222222222','Business unit 1', subscriptionId) | where '{Company}'=='All' or BU=='{Company}' | project BU, account=name, publicNetworkAccess=tostring(properties.publicNetworkAccess), localAuthDisabled=tostring(properties.disableLocalAuth) | order by BU asc, account asc",
+        "size": 0,
+        "title": "Model backend seal per BU (publicNetworkAccess=Enabled is a back door, flagged red)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${bu2_sub}",
+          "${bu1_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "publicNetworkAccess",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Disabled",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "posture-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Compliance at scale (one verdict per company)\n\n**Reads:** per company, how many AI model accounts are sealed (private, no public endpoint) and keyless, rolled to a single Posture verdict. Governance *attested by construction* across the fleet: a tenant that drifts shows **OPEN BACK DOOR** here the instant it does, cross-tenant and read-only."
+      },
+      "name": "hdr-compliance-scorecard",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.cognitiveservices/accounts' | where subscriptionId in ('33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222') | extend Company = case(subscriptionId=='33333333-3333-3333-3333-333333333333','Business unit 2', subscriptionId=='22222222-2222-2222-2222-222222222222','Business unit 1','Other') | where '{Company}'=='All' or Company=='{Company}' | extend pub=tostring(properties.publicNetworkAccess), la=tostring(properties.disableLocalAuth) | summarize aiAccounts=count(), sealed=countif(pub=='Disabled'), keyless=countif(la=='true') by Company | extend publicAccounts=aiAccounts-sealed | extend Posture = case(sealed==aiAccounts,'Compliant (sealed)', sealed==0,'OPEN BACK DOOR','Partial') | project Company, Posture, aiAccounts, sealed, publicAccounts, keyless | order by Posture asc",
+        "size": 0,
+        "title": "Model-seal compliance per company (sealed vs public back door)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${bu2_sub}",
+          "${bu1_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Posture",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Compliant (sealed)",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "OPEN BACK DOOR",
+                    "representation": "redBright",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "yellow",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "publicAccounts",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            },
+            {
+              "columnMatch": "sealed",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "compliance-scorecard-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Two planes, not one: who governs the data vs who governs the actions\n**Microsoft Purview governs the data. The policy engine governs the agent's actions.** These are complementary layers, not the same job, and not a duplicate. Purview classifies and labels the data (public, internal, restricted), applies data-loss controls, and records who touched what. The policy engine decides, in the moment and before each action, whether this agent is allowed to take this action, and blocks it if not, using Purview's label as one of its inputs. In one line: **Purview labels and records; the policy engine decides and blocks.** The two tiles below show the immutable evidence store that keeps the record, and the policy engine's live allow-or-block decisions."
+      },
+      "name": "hdr-two-planes-note",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Immutable audit store (holding live audit records)\nThe hub's audit storage is immutable, meaning write-once: once a record is written it cannot be altered or deleted, so an auditor can replay who did what and no one can rewrite history. It holds an append-only audit trail: a receipt for every agent run, every allow-or-deny decision the policy engine made, and every evaluation result, each tied to the exact version of the agent that produced it. **The store now holds real evidence: a hub-side exporter reads the governed tool's allow, deny, and filter decisions from the spoke workspaces (cross-tenant over Lighthouse) and writes them here as immutable, append-only blobs. The first export captured the live governance decisions (hundreds of records). The exporter runs on demand today; the continuous scheduled version runs behind a private endpoint so the store never has to open its network. The grid below attests the sink itself is correctly built and locked down; the decision records live inside the append-only blobs.**\n\n**This grid attests the sink's configuration**, read live via Azure Resource Graph (a mis-configured sink shows red here, not in an audit): `immutableVersioning` true means write-once is on; `retentionDays` is how long evidence is kept; `publicBlobAccess` false means no anonymous reads; `minTls` (the minimum data-in-transit encryption) and `sku` (the storage tier) for completeness.\n\n**policyLocked (the amber cell):** *Unlocked* means immutability and retention are set but still in draft, so an admin could still shorten them (immutable-capable, but not yet fully tamper-proof). *Locked* means retention is permanent and irreversible for everyone, including owners (true, enforced immutability). Lock the container's immutability policy to turn it green."
+      },
+      "name": "hdr-audit-worm",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources | where type =~ 'microsoft.storage/storageaccounts' | where resourceGroup =~ 'rg-agentfactory-hub' | project account=name, immutableVersioning=tostring(properties.immutableStorageWithVersioning.enabled), retentionDays=tostring(properties.immutableStorageWithVersioning.immutabilityPolicy.immutabilityPeriodSinceCreationInDays), policyLocked=tostring(properties.immutableStorageWithVersioning.immutabilityPolicy.state), publicBlobAccess=tostring(properties.allowBlobPublicAccess), minTls=tostring(properties.minimumTlsVersion), sku=tostring(sku.name)",
+        "size": 0,
+        "title": "Hub audit store: immutable (write-once) state",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${hub_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "immutableVersioning",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "true",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "policyLocked",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Locked",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "yellow",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "publicBlobAccess",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "false",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "audit-worm-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Cost: live LLM token spend by SOP-linked capability\n\n**Reads:** left, token spend per SOP-linked capability (which agent costs the most); right, that spend over time (is it trending up)."
+      },
+      "name": "hdr-tokens",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']), conv=tostring(Attributes['gen_ai.conversation.id']) | where isnotempty(AgentName) | summarize interactions=count(), conversations=dcount(conv), inputTokens=sum(inTok), outputTokens=sum(outTok), totalTokens=sum(inTok)+sum(outTok) by Company, SOP_linked_capability=AgentName | order by totalTokens desc",
+        "size": 0,
+        "title": "Token / cost by SOP-linked capability",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "totalTokens",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "interactions",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "token-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where '{Company}'=='All' or Company=='{Company}' | extend tok=toint(Attributes['gen_ai.usage.input_tokens'])+toint(Attributes['gen_ai.usage.output_tokens']) | make-series tokens=sum(tok) default=0, interactions=count() default=0 on TimeGenerated from startofday(ago(30d)) to startofday(now()) step 1d",
+        "size": 0,
+        "title": "Token spend & interactions per day (fixed 30-day window; activity clusters on the days agents ran, flat 0 otherwise)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "timechart"
+      },
+      "customWidth": "50",
+      "name": "token-trend",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Cost in dollars: estimated run-rate by SOP-linked capability (C-1.5, public list price)\nTokens converted to USD at the **gpt-4o global-standard public list price** ($0.0025 per 1K input, $0.01 per 1K output). Swap in the BU's contracted (EA/discount) rate for the negotiated figure; regional or PTU deployments price differently. `estMonthlyRunRateUSD` = the observed daily spend rate projected to a full 30-day month (so a 2-day demo compares to a monthly bill); the table itself covers whatever the time-range picker is set to.\n\n**Reads:** the same token spend as estimated dollars per capability, plus a projected 30-day (one month) run rate. Priced at public list, not the customer's contracted rate."
+      },
+      "name": "hdr-cost-usd",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize inputTokens=sum(inTok), outputTokens=sum(outTok), days=todouble(datetime_diff('day', max(TimeGenerated), min(TimeGenerated)))+1 by Company, SOP_linked_capability=AgentName | extend costRaw=inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k | extend estCostUSD=round(costRaw, 4) | extend estMonthlyRunRateUSD=round(costRaw/days*30, 2) | project Company, SOP_linked_capability, inputTokens, outputTokens, estCostUSD, estMonthlyRunRateUSD | order by estCostUSD desc",
+        "size": 0,
+        "title": "Estimated token cost (USD) and monthly run-rate by capability (gpt-4o public list price)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "estCostUSD",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "estMonthlyRunRateUSD",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "cost-usd-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Per-spoke token spend: which tenant is spending (runaway-tenant check)\nThe fleet total can look healthy while one subsidiary quietly runs away. This breaks the same live token spend down BY SPOKE TENANT, so a single company's runaway usage stands out as the biggest, reddest row. It reads each spoke's agent telemetry cross-tenant over Lighthouse (the Copilot Studio agents' content signal) and honors the time and BU pickers.\n\n**Reads:** one row per spoke tenant with interactions, total tokens, estimated USD (gpt-4o public list price), and the projected 30-day run-rate. The matching per-tenant alert guard (see the guardrails panel on the Overview tab) fires automatically and names the specific tenant when any one spoke crosses its daily token budget."
+      },
+      "name": "hdr-spoke-spend",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | summarize interactions=count(), inputTokens=sum(inTok), outputTokens=sum(outTok), days=todouble(datetime_diff('day', max(TimeGenerated), min(TimeGenerated)))+1 by spokeTenant=Company | extend totalTokens=inputTokens+outputTokens | extend costRaw=inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k | extend estCostUSD=round(costRaw, 4) | extend estMonthlyRunRateUSD=round(costRaw/days*30, 2) | project spokeTenant, interactions, totalTokens, estCostUSD, estMonthlyRunRateUSD | order by totalTokens desc",
+        "size": 0,
+        "title": "Per-spoke daily token spend (runaway tenant stands out; gpt-4o public list price)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "totalTokens",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            },
+            {
+              "columnMatch": "estMonthlyRunRateUSD",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "spoke-spend-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Token-spend anomaly (trend and anomaly detection)\nSurfaces 'what changed' rather than a static total. The window is a FIXED 30 days (not the time picker), so the axis always spans a month; with only a few active days of demo traffic the line clusters into a spike near those days, which is expected, not a bug. `dailyTokens` = each day's spend; `movingAvg3d` = the trailing 3-day average (the recent baseline); a day is flagged only when it exceeds 1.5x that baseline, and only then is `anomalyTokens` non-zero.\n\n**Reads:** point at a flagged spike and say 'the platform caught a day of runaway token spend against its own baseline, cross-tenant.' The 1.5x threshold is illustrative; tune it per BU once real steady-state traffic sets the baseline. This is the early-warning signal, a prompt-injection loop or a stuck agent shows here before it shows on the monthly bill."
+      },
+      "name": "hdr-token-anomaly",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let spine = range TimeGenerated from startofday(ago(30d)) to startofday(now()) step 1d | extend tok=0; let data = union isfuzzy=true ${genai_union_arms} | where '{Company}'=='All' or Company=='{Company}' | extend tok=toint(Attributes['gen_ai.usage.input_tokens'])+toint(Attributes['gen_ai.usage.output_tokens']); union (spine), (data) | summarize dailyTokens=sum(tok) by bin(TimeGenerated, 1d) | order by TimeGenerated asc | serialize | extend movingAvg3d=(dailyTokens + prev(dailyTokens,1,0) + prev(dailyTokens,2,0))/3.0 | extend anomalyTokens=iff(movingAvg3d>0 and dailyTokens > 1.5*movingAvg3d, dailyTokens, 0) | project TimeGenerated, dailyTokens, movingAvg3d, anomalyTokens",
+        "size": 0,
+        "title": "Token-spend anomaly (daily vs 3-day moving average; spikes flagged)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "timechart"
+      },
+      "name": "token-anomaly-chart",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Agent activity (SOP-linked capabilities, evaluation)\n\n*Every tile on this tab profiles the governed agents: how often each ran, what steps it took, how deep its conversations were, and whether its answers were evaluated. Use the Business Unit picker at the top to scope to one company; the grids below also carry a Company column so you can read it by BU, then by agent.*\n\n**Reads:** interactions per agent (volume), operations breakdown, conversation depth (turns per session), and eval coverage (what percent of runs were evaluated).\n\n**Operations breakdown** decodes `gen_ai.operation.name`: `invoke_agent` = a run started, `execute_tool` = the agent called a tool (here the SOP retrieval tool), `chat` = a model turn. Those are the three this fleet emits; other OpenTelemetry gen-ai ops (`create_agent`, `embeddings`, `generate_content`) would appear automatically if the agents did them. A high execute_tool-to-invoke_agent ratio means the agents are grounding on tools rather than answering from the model alone, which is the governed-RAG behavior you want.\n\n**Eval coverage** = of all runs, how many carried an evaluation result. Coverage is the 'did we check it' number; the eval-RESULTS tile below is the 'what did the check say' number."
+      },
+      "name": "hdr-agents",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend AgentName=iif(isempty(tostring(AgentName)), '(unnamed)', tostring(AgentName)) | summarize interactions=count() by AgentName | order by interactions desc",
+        "size": 0,
+        "title": "Interactions by agent",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "barchart"
+      },
+      "customWidth": "50",
+      "name": "agent-bar",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend op=tostring(Attributes['gen_ai.operation.name']) | extend op=case(isnotempty(op), op, isnotempty(EvaluationExplanation), 'evaluation', '(other)') | summarize Operations=count() by op | order by Operations desc",
+        "size": 0,
+        "title": "What the agents actually do (operations breakdown)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "ops-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend conv=tostring(Attributes['gen_ai.conversation.id']) | where isnotempty(conv) | summarize turns=count() by conv, AgentName, Company | summarize conversations=dcount(conv), avgTurns=round(avg(turns),1), maxTurns=max(turns) by Company, AgentName | order by Company asc, conversations desc",
+        "size": 0,
+        "title": "Conversation depth by agent (engagement)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "conv-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend AgentName=iif(isempty(tostring(AgentName)), '(unnamed)', tostring(AgentName)) | summarize evaluated=countif(isnotempty(EvaluationExplanation)), toolCalls=countif(isnotempty(ToolCallArguments)), total=count() by Company, AgentName | extend evalCoveragePct=round(100.0*evaluated/total,1) | order by Company asc, total desc",
+        "size": 0,
+        "title": "Eval coverage & tool calls by agent (C-1.3)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "evalCoveragePct",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "eval-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Evaluation results, not just coverage\n\n**Reads:** the evaluator agent's own output, bucketed into a Verdict per agent. This goes past 'how many runs were evaluated' to 'what did the evaluation say.'\n\n**The verdicts (a heuristic read of the `EvaluationExplanation` free text):** `Passed safety check` = the evaluator found no harmful/violent/policy content; `Quality concern` = the evaluator flagged the answer as not meeting the bar (its text contained phrases like 'does not meet', 'lacks', 'insufficient', 'extremely brief'), so a human should review, NOT necessarily a hard fail; `Skipped` = evaluation was not applicable or had no content to judge; `Reviewed` = evaluated but did not match the other buckets. Because these are parsed from prose, they are a directional signal, not a graded score.\n\n**In production** you swap this heuristic for Foundry continuous-evaluation NUMERIC scores (groundedness, relevance, coherence, tool-call accuracy), each 1-to-5 with a trend line, and you gate deploys on a threshold (the eval gate, cap 13). Point at the Quality-concern count and say 'the platform grades its own agents' answers, and this is the number that feeds the ship / no-ship gate.'"
+      },
+      "name": "hdr-eval-results",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | where isnotempty(EvaluationExplanation) | extend e=tolower(tostring(EvaluationExplanation)) | extend Verdict=case(e has 'not applicable' or e has 'skipped','Skipped (no content to judge)', e has 'no violen' or e has 'no threats' or e has 'no violence','Passed safety check', e has 'does not meet' or e has 'lacks' or e has 'extremely brief' or e has 'insufficient','Quality concern', 'Reviewed') | summarize evals=count() by Company, AgentName, Verdict | order by Company asc, AgentName asc, evals desc",
+        "size": 0,
+        "title": "Evaluation verdicts by agent (heuristic from evaluator text)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Verdict",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Passed safety check",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Quality concern",
+                    "representation": "redBright",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Skipped (no content to judge)",
+                    "representation": "gray",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "blue",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "evals",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "eval-results-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Real evaluator scores (Foundry evaluation results)\n\n**Reads** `AppEvents` where `Name == 'gen_ai.evaluation.result'`, emitted to the workspace when Application Insights is enabled on the Foundry project. Each built-in evaluator (fluency, task adherence, violence, and so on) returns a numeric score and a **pass / fail** against its threshold, per agent. This is the real graded signal the heuristic verdicts above stand in for, and the number that feeds the ship / no-ship gate."
+      },
+      "name": "hdr-eval-scores",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AppEvents | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppEvents | extend Company='Business unit 2') | where Name == 'gen_ai.evaluation.result' | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend P=parse_json(tostring(Properties)) | extend evaluator=tostring(P['gen_ai.evaluation.name']), label=tostring(P['gen_ai.evaluation.score.label']) | where label in ('pass','fail') | summarize passRatePct=round(100.0*countif(label=='pass')/count(),1) by evaluator | order by passRatePct desc",
+        "size": 0,
+        "title": "Evaluation pass rate by evaluator (higher is better)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "visualization": "barchart"
+      },
+      "customWidth": "50",
+      "name": "eval-scores-chart",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AppEvents | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppEvents | extend Company='Business unit 2') | where Name == 'gen_ai.evaluation.result' | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend P=parse_json(tostring(Properties)) | extend evaluator=tostring(P['gen_ai.evaluation.name']), score=todouble(P['gen_ai.evaluation.score.value']), label=tostring(P['gen_ai.evaluation.score.label']), agent=tostring(P['gen_ai.agent.name']) | where label in ('pass','fail') | summarize evaluations=count(), passed=countif(label=='pass'), failed=countif(label=='fail'), avgScore=round(avg(score),2) by Company, agent, evaluator | extend passRatePct=round(100.0*passed/evaluations,1) | order by Company asc, agent asc, evaluator asc",
+        "size": 0,
+        "title": "Evaluator scores by agent (pass / fail per built-in evaluator)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "passRatePct",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": ">=",
+                    "thresholdValue": "80",
+                    "representation": "green",
+                    "text": "{0}%"
+                  },
+                  {
+                    "operator": ">=",
+                    "thresholdValue": "50",
+                    "representation": "yellow",
+                    "text": "{0}%"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}%"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "failed",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": ">",
+                    "thresholdValue": "0",
+                    "representation": "redBright",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "green",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "avgScore",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "evaluations",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "eval-scores-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "content": {
+        "json": "## SOP to execution to evaluation lineage (the traceable spine)\n\n**Status: partially live (proxy key).** Grouped by the agent's SOP name today; it auto-swaps to the stamped `sop_id` the moment the agent emits it.\n\n**Reads:** one row per SOP, keyed on the agent's SOP name today and on the stamped `sop_id` the instant the agent emits it, with the runs, evaluations, and tool calls under each SOP. This is the customer's SOP -> agent -> execution -> eval chain on one grid, cross-tenant."
+      },
+      "name": "hdr-sop-lineage",
+      "type": 1,
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "content": {
+        "size": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "formatOptions": {
+                "palette": "blue"
+              },
+              "columnMatch": "interactions",
+              "formatter": 8
+            },
+            {
+              "formatOptions": {
+                "palette": "green"
+              },
+              "columnMatch": "evaluated",
+              "formatter": 8
+            },
+            {
+              "formatOptions": {
+                "palette": "green"
+              },
+              "columnMatch": "toolCalls",
+              "formatter": 8
+            }
+          ]
+        },
+        "visualization": "table",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend sop_id=tostring(Attributes['sop_id']) | extend SOP=iff(isnotempty(sop_id),sop_id,AgentName) | where SOP has 'sop' or isnotempty(sop_id) | summarize agents=dcount(AgentName), interactions=count(), evaluated=countif(isnotempty(EvaluationExplanation)), toolCalls=countif(isnotempty(ToolCallArguments)), lastRun=max(TimeGenerated) by SOP, Company | order by interactions desc",
+        "queryType": 0,
+        "version": "KqlItem/1.0",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "title": "SOP -> runs -> evaluations -> tool calls (per SOP, per company)"
+      },
+      "name": "sop-lineage-grid",
+      "type": 3,
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "name": "hdr-run-explorer",
+      "type": 1,
+      "content": {
+        "json": "## Governed run explorer (every agent run as a traceable session)\n\n**Reads:** one row per run (TraceId): step count, tool calls, whether it was evaluated, and end-to-end duration, cross-tenant. This is the session / duration / step view AWS AgentCore shows, except here it spans separate companies from one hub pane. Counts and timings only, no prompt or response content.\n\nBusiness unit 2 has no agent yet, so only Business unit 1 populates this today."
+      },
+      "conditionalVisibilities": [
+        {
+          "comparison": "isEqualTo",
+          "value": "agents",
+          "parameterName": "selectedTab"
+        }
+      ]
+    },
+    {
+      "name": "run-explorer-grid",
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "queryType": 0,
+        "visualization": "table",
+        "title": "Governed runs: steps, tool calls, evaluation, duration (per run, cross-tenant)",
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "steps",
+              "formatOptions": {
+                "palette": "blue"
+              },
+              "formatter": 8
+            },
+            {
+              "columnMatch": "toolCalls",
+              "formatOptions": {
+                "palette": "green"
+              },
+              "formatter": 8
+            },
+            {
+              "columnMatch": "evaluated",
+              "formatOptions": {
+                "palette": "green"
+              },
+              "formatter": 8
+            },
+            {
+              "columnMatch": "durationSec",
+              "formatOptions": {
+                "palette": "orange"
+              },
+              "formatter": 8
+            }
+          ]
+        },
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend op=tostring(Attributes['gen_ai.operation.name']) | summarize steps=count(), toolCalls=countif(op=='execute_tool' or isnotempty(ToolCallArguments)), evaluated=countif(isnotempty(EvaluationExplanation)), agent=any(AgentName), firstT=min(TimeGenerated), lastRun=max(TimeGenerated) by TraceId, Company | extend durationSec=datetime_diff('second',lastRun,firstT) | project Company, agent, run=substring(TraceId,0,12), steps, toolCalls, evaluated, durationSec, lastRun | order by lastRun desc | take 100",
+        "size": 0,
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ]
+      },
+      "conditionalVisibilities": [
+        {
+          "comparison": "isEqualTo",
+          "value": "agents",
+          "parameterName": "selectedTab"
+        }
+      ]
+    },
+    {
+      "name": "hdr-execution-path",
+      "type": 1,
+      "content": {
+        "json": "## Execution path (step-by-step waterfall, what the agent actually did)\n\n**Reads:** the ordered steps inside recent runs (invoke_agent -> execute_tool -> chat) with seconds elapsed from the run start. This is the trace-waterfall competitors headline, grounded in real spans. You see the step SHAPE (which tools ran, in what order, how long), never the prompt or response content."
+      },
+      "conditionalVisibilities": [
+        {
+          "comparison": "isEqualTo",
+          "value": "agents",
+          "parameterName": "selectedTab"
+        }
+      ]
+    },
+    {
+      "name": "execution-path-grid",
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "queryType": 0,
+        "visualization": "table",
+        "title": "Execution path: ordered steps inside recent runs (the waterfall)",
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "elapsedSec",
+              "formatOptions": {
+                "palette": "orange"
+              },
+              "formatter": 8
+            }
+          ]
+        },
+        "query": "let spans = union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend op=tostring(Attributes['gen_ai.operation.name']); let bounds = spans | summarize traceStart=min(TimeGenerated), traceLast=max(TimeGenerated) by TraceId; spans | join kind=inner bounds on TraceId | extend elapsedSec=datetime_diff('second',TimeGenerated,traceStart), tool=iff(isnotempty(ToolCallArguments),'tool call','') | project Company, AgentName, run=substring(TraceId,0,12), Step=op, tool, elapsedSec, at=TimeGenerated, traceLast | order by traceLast desc, run asc, at asc | project-away traceLast | take 80",
+        "size": 0,
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ]
+      },
+      "conditionalVisibilities": [
+        {
+          "comparison": "isEqualTo",
+          "value": "agents",
+          "parameterName": "selectedTab"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Per-tool outcomes (governed tool use)\n\n**Reads (per agent, for the SOP retrieval tool):** `toolCalls` = how many times the agent called the tool; `withResult` = how many returned anything; `resultCoveragePct` = withResult / toolCalls; `avgDocsRetrieved` = average SOP documents pulled (parsed from `ToolCallResult`); `zeroDocCalls` = calls that ran but retrieved NOTHING.\n\n**Why this is a governance signal, not just observability:** the tool is the RAG grounding step behind every SOP answer. A `zeroDocCall` (or low `resultCoveragePct`) means the agent answered WITHOUT grounding on an SOP, exactly the ungoverned, hallucination-prone behavior the SOP-first architecture exists to prevent. `avgDocsRetrieved` too low can mean weak retrieval; too high can mean noisy context. Live: sop-assistant made 31 tool calls, 24 returned SOPs (77% coverage), avg 2 docs, 0 zero-doc calls, so its answers are grounded. Point at zeroDocCalls = 0 and say 'every SOP answer was backed by a retrieved SOP, and I can prove it cross-tenant.'"
+      },
+      "name": "hdr-tool-outcomes",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | where isnotempty(ToolCallArguments) | extend res=tostring(ToolCallResult) | extend docs=toint(extract(@'Retrieved ([0-9]+)', 1, res)) | summarize toolCalls=count(), withResult=countif(isnotempty(res)), avgDocsRetrieved=round(avg(docs),1), zeroDocCalls=countif(docs==0) by AgentName | extend resultCoveragePct=round(100.0*withResult/toolCalls,1) | project AgentName, toolCalls, withResult, resultCoveragePct, avgDocsRetrieved, zeroDocCalls | order by toolCalls desc",
+        "size": 0,
+        "title": "Tool-call outcomes by agent (SOP retrieval)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "toolCalls",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "resultCoveragePct",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "zeroDocCalls",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "tool-outcomes-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "agents"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Models in use per BU (shadow-model detection)\nWhich models the BU's agents actually call, from `AppGenAIContent` (Copilot Studio / Foundry agents). An agent calling a model outside the governed catalog shows up here. Deployed-but-unused models can be cross-checked with an Azure Resource Graph `cognitiveservices/accounts/deployments` query.\n\n**Reads:** which models the agents actually called and how often. A model not in the governed catalog appearing here is shadow-model usage."
+      },
+      "name": "hdr-models",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend Model=tostring(Attributes['gen_ai.response.model']) | where isnotempty(Model) | summarize interactions=count() by Model | order by interactions desc",
+        "size": 0,
+        "title": "Models actually called by agents (governed catalog check)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "piechart"
+      },
+      "name": "models-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Azure OpenAI native platform metrics (no instrumentation)\n\n**Reads:** the model account's own platform metrics from `AzureMetrics` (`MICROSOFT.COGNITIVESERVICES`): total tokens, call count, and average latency per BU. Emitted by the Azure OpenAI resource with zero instrumentation, so they cover every call to the account (agent and non-agent), complementing the agent-traced token view on the Cost tab."
+      },
+      "name": "hdr-aoai-native",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AzureMetrics | extend Company='Business unit 1'), (workspace('${bu2_ws}').AzureMetrics | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | where ResourceProvider == 'MICROSOFT.COGNITIVESERVICES' | summarize nativeTokens=sumif(Total, MetricName=='TotalTokens'), calls=sumif(Total, MetricName=='TotalCalls'), avgLatencyMs=round(avgif(Average, MetricName=='Latency'),0) by Company | where nativeTokens > 0 or calls > 0 | order by nativeTokens desc",
+        "size": 0,
+        "title": "Azure OpenAI native metrics by BU (tokens, calls, latency)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}",
+          "${bu2_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "nativeTokens",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "avgLatencyMs",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "aoai-native-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## AI platform operations and audit (Cognitive Services diagnostics)\nThe model service's OWN diagnostic logs, separate from the agent telemetry above. 'Audit' is the control-plane audit trail (for example key-listing operations on the account); 'RequestResponse' is the data-plane API operations the service handled (chat completions, embeddings, evaluations, red-team attack-objective calls); 'AzureOpenAIRequestUsage' is per-request model usage.\n\n**Reads:** one row per BU, diagnostic category, and operation, with the call count. This is the platform-level view a security reviewer uses to see what the AI service itself did, not just what the agents traced."
+      },
+      "name": "hdr-aiplatform-diag",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AzureDiagnostics | extend Company='Business unit 1'), (workspace('${bu2_ws}').AzureDiagnostics | extend Company='Business unit 2') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | where ResourceProvider == 'MICROSOFT.COGNITIVESERVICES' | summarize operations=count(), lastSeen=max(TimeGenerated) by Company, Category, OperationName | order by operations desc | take 30",
+        "size": 0,
+        "title": "Cognitive Services diagnostics by BU, category, and operation (audit / request-response / request-usage)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "operations",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "aiplatform-diag-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Spoke workload compute health (performance counters)\nThe underlying compute each spoke's workload runs on, from Application Insights performance counters. 'avgProcPct' is average processor time; 'avgAvailMemGB' is average available memory. This is an operations signal (is the host healthy) rather than a governance signal, included so the board covers every live table.\n\n**Reads:** one row per BU with average processor percent and available memory over the last 7 days. A spoke pinned near 100 percent processor or near-zero available memory would stand out here."
+      },
+      "name": "hdr-compute-health",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu1_ws}').AppPerformanceCounters | extend Company='Business unit 1'), (workspace('${bu2_ws}').AppPerformanceCounters | extend Company='Business unit 2') | where TimeGenerated > ago(7d) | where '{Company}'=='All' or Company=='{Company}' | where Name in ('% Processor Time', 'Available Bytes') | summarize avgProcPct=round(avgif(Value, Name=='% Processor Time'),1), avgAvailMemGB=round(avgif(Value, Name=='Available Bytes')/1073741824.0,2), samples=count() by Company | order by Company asc",
+        "size": 0,
+        "title": "Workload compute health by BU (average processor time and available memory, last 7 days)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "avgProcPct",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            },
+            {
+              "columnMatch": "avgAvailMemGB",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "compute-health-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Agent collaboration / traces (agent-to-agent call graph, correlation ids)\n\n**Reads:** one row per trace (correlation id): how many spans, agents, and models took part. High span counts are multi-agent or multi-step runs."
+      },
+      "name": "hdr-trace",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize spans=count(), agents=dcount(AgentName), models=dcount(tostring(Attributes['gen_ai.response.model'])), lastSeen=max(TimeGenerated) by TraceId | order by spans desc | take 40",
+        "size": 0,
+        "title": "Traces by correlation id (spans, agents, models)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "spans",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "trace-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Gateway coverage: who is on the gateway, and who is not\nThe customer architecture requires a single governed entry point with no back-door paths (A-2.3). This reads live resource state via Azure Resource Graph and lists every governed BU with whether it has an Azure API Management gateway. A BU showing **NOT on gateway** has no gateway resource, so its agent traffic is not routed through the central policy pre-checkt governs at the runtime tool layer instead (see the Posture tab).\n\n**Reads:** one row per governed BU. onGateway = On gateway (an Azure API Management service exists) or NOT on gateway (none); gatewayNames names the gateway resource."
+      },
+      "name": "hdr-gateway-coverage",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "datatable(BU:string, sub:string)['Business unit 2','33333333-3333-3333-3333-333333333333','Business unit 1','22222222-2222-2222-2222-222222222222'] | where '{Company}'=='All' or BU=='{Company}' | join kind=leftouter (resources | where type =~ 'microsoft.apimanagement/service' | summarize gateways=count(), names=make_set(name) by sub=subscriptionId) on sub | extend gateways=coalesce(toint(gateways),0) | extend onGateway=iff(gateways>0,'On gateway','NOT on gateway (none)') | project BU, onGateway, gateways, gatewayNames=tostring(names) | order by onGateway asc",
+        "size": 0,
+        "title": "Gateway coverage per BU (who routes through the governed gateway)",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "${bu2_sub}",
+          "${bu1_sub}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "onGateway",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "On gateway",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "yellow",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "gateway-coverage-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Gateway (routing and orchestration)\n**Status: wiring gap, not a security block.** No agent call has landed a clean 200 through the gateway yet, so every code below is a 404 (route not imported); it flips to real routing and token metering on the first successful call.\n\nWindow follows the **time-range picker** at the top of the workbook; use the **BU picker** to narrow to one company (both charts and every gateway-tab tile honor them).\n\n**Reads:** left, gateway calls per BU over time; right, gateway operations and response codes, with 400+ flagged red (failing calls). Today both BUs are dominated by 404s: the agent API is not imported into the gateway yet, so these are routing failures, not security blocks (see the root-cause tile below)."
+      },
+      "name": "hdr-gw",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize calls=count() by bin(TimeGenerated, 1d), Company",
+        "size": 0,
+        "title": "Gateway calls over time by BU",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "visualization": "timechart"
+      },
+      "customWidth": "50",
+      "name": "gw-trend",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize calls=count() by Company, OperationName, ResponseCode | extend Meaning = case(ResponseCode==200,'OK (success)', ResponseCode==201,'Created (success)', ResponseCode==401,'Unauthorized: authentication failed or missing/blocked key', ResponseCode==403,'Forbidden: policy denial', ResponseCode==404,'Not found: no matching route (gateway not yet wired to a backend)', ResponseCode==429,'Rate limited: throttled by token/rate policy', ResponseCode>=500,'Server error: backend or gateway fault', ResponseCode>=400,'Client error', 'Informational/redirect') | project Company, OperationName, ResponseCode, Meaning, calls | order by calls desc | take 50",
+        "size": 0,
+        "title": "Gateway ops & response codes (400+ flagged)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResponseCode",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": ">=",
+                    "thresholdValue": "400",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "green",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "gw-ops",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Why gateway calls fail (root-cause breakdown)\n\n**Reads:** every gateway response grouped by code plus the gateway's own LastErrorReason and LastErrorSource, so 404 (route not imported into the gateway) vs 401 (missing key) vs 403 (policy denial) vs 429 (rate limit) is never ambiguous. If this is dominated by 404 OperationNotFound, the agent's route is not wired to the gateway yet: a wiring gap, not a security block."
+      },
+      "name": "hdr-why-failed",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize calls=count() by Company, ResponseCode, LastErrorReason=tostring(LastErrorReason), LastErrorSource=tostring(LastErrorSource) | extend Meaning=case(ResponseCode==200,'OK', ResponseCode==401,'Unauthorized: auth failed or missing key', ResponseCode==403,'Forbidden: policy denial', ResponseCode==404,'Not found: no matching route (the operation is not imported)', ResponseCode==429,'Rate limited: throttled', ResponseCode>=500,'Server error', ResponseCode>=400,'Client error', 'Informational/redirect') | project Company, ResponseCode, Meaning, LastErrorReason, LastErrorSource, calls | order by calls desc | take 50",
+        "size": 0,
+        "title": "Gateway failures by code and root cause (LastErrorReason / Source)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ResponseCode",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": ">=",
+                    "thresholdValue": "400",
+                    "representation": "redBright",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "green",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "calls",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "why-failed-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Security: blocks & denials (enforcement in real time)\nWindow and BU follow the pickers at the top. Every non-2xx at the gateway is an enforcement event: 403 = policy denial, other 4xx = guardrail/auth block, 429 = rate limit. This is the 'it said no, here is the receipt' view, captured as cross-tenant audit.\n\n**Reads:** enforcement events per BU grouped by type: policy denials (403), rate limits (429), blocked 4xx, server errors, versus allowed 2xx/3xx.\n\n**Honest read today:** every event is in the **Blocked 4xx** bucket (Business unit 1 ~2,623, Business unit 2 ~873) because 100% of gateway traffic is currently 404 routing failures, so the 403 (policy denial) and 429 (rate limit) buckets are 0. This tile proves the enforcement-event PLUMBING is live and cross-tenant; the buckets fill with real denials once the gateway is wired (one clean 200) and the policy engine emits decisions. Do not present the 4xx count as policy denials yet."
+      },
+      "name": "hdr-sec",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend Enforcement = case(ResponseCode==403,'Policy denial (403)', ResponseCode==429,'Rate limited (429)', ResponseCode>=400 and ResponseCode<500,'Blocked 4xx', ResponseCode>=500,'Server error 5xx','Allowed 2xx/3xx') | summarize events=count() by Company, Enforcement | order by events desc",
+        "size": 0,
+        "title": "Enforcement events by BU (denials, blocks, rate limits)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "events",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "sec-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Error rate & auth failures per BU (reliability + who cannot get in)\nWindow and BU follow the pickers at the top. 401 = authentication failure at the gateway, 403 = policy denial, 429 = rate limit. `errorRatePct` = all non-2xx over total gateway calls.\n\n**Reads:** per BU, total gateway calls, how many were auth failures (401), denials (403), and rate limits (429), plus the overall error rate percent.\n\n**What the 100% is reflecting:** both BUs read 100% not because the models or agents are unreliable, but because **every call currently returns a non-2xx** (almost all 404 route-not-found, plus a few 401 for Business unit 1). It is a gateway-not-wired signal, not an agent-quality signal: the agent answers fine on its direct path, it just is not routed THROUGH the governed gateway yet, so the gateway logs only failed attempts. This number drops the moment the agent API is imported and one clean 200 lands, and from then on it is a genuine reliability target."
+      },
+      "name": "hdr-errorrate",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').ApiManagementGatewayLogs | extend Company='Business unit 2'), (workspace('${bu1_ws}').ApiManagementGatewayLogs | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize total=count(), auth401=countif(ResponseCode==401), denied403=countif(ResponseCode==403), rate429=countif(ResponseCode==429), errors=countif(ResponseCode>=400) by Company | extend errorRatePct=round(100.0*errors/total,1) | order by errorRatePct desc",
+        "size": 0,
+        "title": "Gateway error rate and auth / denial / rate-limit counts by BU",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "errorRatePct",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            },
+            {
+              "columnMatch": "auth401",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "errorrate-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Latency & reliability (C-1.2 latency metrics)\n\n**Status: app-layer only.** These are app-request durations (dominated by fast 404s), not model-inference latency; true model latency lands with the first clean gateway 200.\n\n**Reads:** left, **app-request** latency percentiles per BU (p50/p95/p99). These are app-layer request durations, which today are dominated by fast 404 failures on the misrouted traffic, not model-inference time, so sub-second here means 'fails fast,' not 'thinks fast.' Thresholds are fixed (green <1s, amber 1-3s, red >3s) so tiny millisecond gaps no longer glow red. True model latency lights up in the gateway LLM log (or AppGenAIContent durations) once a clean 200 lands. Right, the most frequent exceptions by ProblemId."
+      },
+      "name": "hdr-lat",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').AppRequests | extend Company='Business unit 2'), (workspace('${bu1_ws}').AppRequests | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize requests=count(), p50_ms=round(percentile(DurationMs,50),1), p95_ms=round(percentile(DurationMs,95),1), p99_ms=round(percentile(DurationMs,99),1) by Company | order by requests desc",
+        "size": 0,
+        "title": "App-request latency by BU (p50 / p95 / p99, includes fast failures)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "p95_ms",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "<",
+                    "thresholdValue": "1000",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "<",
+                    "thresholdValue": "3000",
+                    "representation": "yellow",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "p99_ms",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "<",
+                    "thresholdValue": "1000",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "<",
+                    "thresholdValue": "3000",
+                    "representation": "yellow",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "lat-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Success rate vs reliability target (with an error budget)\n\n**Status: wiring gap.** Success rate reads about 0% because every gateway call is a 404 today; it becomes a real reliability target the moment a spoke lands a clean 200.\n\n**Reads:** per BU, app-request success rate against a 99% reliability target, with error budget remaining. Today this reads low because the misrouted 404 traffic dominates AppRequests; it turns green when a clean agent path lands. This is the reliability baseline the gateway/why-failed tiles explain."
+      },
+      "name": "hdr-slo",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').AppRequests | extend Company='Business unit 2'), (workspace('${bu1_ws}').AppRequests | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize total=count(), ok=countif(Success==true), failed=countif(Success!=true) by Company | extend successRatePct=round(100.0*ok/total,2) | extend errorBudgetRemainingPct=round(successRatePct-99.0,2) | project Company, total, ok, failed, successRatePct, errorBudgetRemainingPct | order by successRatePct asc",
+        "size": 0,
+        "title": "App-request success rate vs 99% reliability target by BU",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "successRatePct",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": ">=",
+                    "thresholdValue": "99",
+                    "representation": "green",
+                    "text": "{0}"
+                  },
+                  {
+                    "operator": "Default",
+                    "thresholdValue": null,
+                    "representation": "redBright",
+                    "text": "{0}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "failed",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "slo-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "deepdive"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "union isfuzzy=true (workspace('${bu2_ws}').AppExceptions | extend Company='Business unit 2'), (workspace('${bu1_ws}').AppExceptions | extend Company='Business unit 1') | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | summarize count() by Company, ProblemId | order by count_ desc | take 30",
+        "size": 0,
+        "title": "Exceptions by ProblemId & BU",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu2_ws}",
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "count_",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "customWidth": "50",
+      "name": "exc-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "gateway"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Classification-aware redaction proof (Copilot Studio agents)\n**Whose agents these are:** the rows below are the business units' **Copilot Studio agents** (Business unit 1's spoke). They are authored in **Copilot Studio** and run on the **Azure AI Foundry model runtime**, which is what emits this content telemetry.\n\n**What this tile is proving (the one-liner):** the hub CAN see these agents' most sensitive content and deliberately does NOT pull it. That is 'oversight without extraction' turned into a number you can point at.\n\n**How to read it:** every interaction from each Copilot Studio agent carries the full prompt (`InputMessages`), the model's reply (`OutputMessages`), the system instructions, and the tool result, all sitting in the spoke workspace. This tile counts, PER AGENT, how many rows carry each kind of content, and the dashboard never selects or displays the text itself. The governance point: the parent could read every word cross-tenant and instead only meters it. Point at any agent's `withPrompt` count and say 'the content is right there and I never touch it.'"
+      },
+      "name": "hdr-proof",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "workspace('${bu1_ws}').AppGenAIContent | where TimeGenerated {TimeRange} | where isnotempty(AgentName) | summarize rowsTotal=count(), withPrompt=countif(isnotempty(InputMessages)), withReply=countif(isnotempty(OutputMessages)), withToolResult=countif(isnotempty(ToolCallResult)), withSystemInstructions=countif(isnotempty(SystemInstructions)) by CopilotStudioAgent=AgentName | order by rowsTotal desc",
+        "size": 0,
+        "title": "Content columns present but never selected (per Copilot Studio agent)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "visualization": "table"
+      },
+      "name": "proof-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "posture"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Business value / ROI (illustrative baseline)\n**Status: illustrative.** Dollars use two labeled placeholder inputs; swap the pilot's real SOP baseline and loaded labor rate for a true number.\n\nQuantifies value from execution telemetry against an SOP baseline, net of AI cost, over the current time-range picker. Two labeled assumptions you replace per pilot: `minutesSavedPerRun` (now 12) and `laborRateUSDPerHour` (now 45). AI cost is the gpt-4o public list price. Per-capability attribution = per SOP-linked agent (A-1.1).\n\n**Reads (per capability):** `Runs` in the window, `hoursSaved` (Runs x minutesSavedPerRun / 60), `laborValueUSD` (hoursSaved x laborRateUSDPerHour), `aiCostUSD` (list price on real tokens), `netValueUSD` (value minus cost), and `roiX` (value / cost). Worked example: sop-assistant, 112 runs x 12 min = 22.4 hours x $45 = $1,008 of labor value, $0.25 of AI cost, so $1,007.75 net at roughly a 4,000x return.\n\n**Set the baseline properly (this is the C-1.5 Value Baseline from the SOP spec):** do a short time-and-motion read on the ONE task each agent automates. `minutesSavedPerRun` = how long that task took a person before the agent (from the SOP author, or a 5-to-10 run stopwatch sample), set PER capability because an SOP lookup and a full quote are not worth the same. `laborRateUSDPerHour` = the BU's fully loaded rate (salary + benefits + overhead), from finance. Optionally net out quality: if the eval tile shows a Quality-concern rate, multiply value by the pass rate so you only bank verified-good runs. Until those two come from the pilot SOP, the dollars stay illustrative."
+      },
+      "name": "hdr-roi",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let minutesSavedPerRun = 12.0; let laborRateUSDPerHour = 45.0; let inPricePer1k = 0.0025; let outPricePer1k = 0.01; union isfuzzy=true ${genai_union_arms} | where TimeGenerated {TimeRange} | where '{Company}'=='All' or Company=='{Company}' | extend inTok=toint(Attributes['gen_ai.usage.input_tokens']), outTok=toint(Attributes['gen_ai.usage.output_tokens']) | where isnotempty(AgentName) | summarize Runs=count(), inputTokens=sum(inTok), outputTokens=sum(outTok) by Company, AgentName | extend hoursSaved=round(Runs*minutesSavedPerRun/60,1) | extend laborValueUSD=round(hoursSaved*laborRateUSDPerHour,2) | extend aiCostUSD=round(inputTokens/1000.0*inPricePer1k + outputTokens/1000.0*outPricePer1k,2) | extend netValueUSD=round(laborValueUSD-aiCostUSD,2) | extend roiX=round(laborValueUSD/iff(aiCostUSD==0.0,1.0,aiCostUSD),1) | project Company, SOP_linked_capability=AgentName, Runs, hoursSaved, laborValueUSD, aiCostUSD, netValueUSD, roiX | order by netValueUSD desc",
+        "size": 0,
+        "title": "Business value net of AI cost by SOP-linked capability (illustrative baseline + public list price)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "${bu1_ws}"
+        ],
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "netValueUSD",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "green"
+              }
+            },
+            {
+              "columnMatch": "Runs",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            }
+          ]
+        },
+        "visualization": "table"
+      },
+      "name": "roi-grid",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "cost"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Identity-plane governance lives in Microsoft Entra (not this workbook)\nCaps 9-11 of the governance walkthrough, the cross-tenant governance relationship, signing into the governed tenant as a delegated Technician, and acting on the agent's identity / sign-ins / risk, run in the **Microsoft Entra admin center** over GDAP / Tenant Governance, not in Log Analytics or Azure Resource Graph. They are intentionally not tiles here. This workbook covers the Operations plane (telemetry, cost, latency, enforcement, posture); the Identity plane is demonstrated live in Entra."
+      },
+      "name": "hdr-identity-note",
+      "conditionalVisibilities": [
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "overview"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "---\n**Scaling:** each new BU is one more `workspace('...')` block per tile (Azure Monitor allows up to 100 workspaces per cross-workspace query) plus one more entry in the **Business Unit (BU)** dropdown. The auto-discovery version replaces the hardcoded IDs with a workspace-picker parameter fed by Azure Resource Graph, filtered to the `project=demo-agent-factory` tag.\n\n**Traces to customer architecture:** C-1.2 Telemetry & Audit, C-1.5 Business Value & ROI, C-1.1 Agent Collaboration, C-1.3 Evaluation, A-1.1 SOP-linkage, A-2.3 Gateway, B-1.3 / X-2 classification. **Live token/cost comes from `AppGenAIContent.Attributes`** (`gen_ai.usage.*`), not the empty gateway LLM log."
+      },
+      "name": "footer"
+    }
+  ],
+  "fallbackResourceIds": [
+    "${hub_sub}/resourceGroups/rg-agentfactory-hub/providers/microsoft.operationalinsights/workspaces/law-agentfactory-hub"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

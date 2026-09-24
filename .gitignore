@@ -1,0 +1,82 @@
+# ============================================================
+# CUSTOMER-CONFIDENTIAL: NEVER COMMIT
+# This repo holds ONLY synthetic-data demo code and IaC.
+# Customer documents, proposals, notes, and images stay in
+# OneDrive and must never enter this repo.
+# ============================================================
+
+# Document formats (proposals, SOWs, architecture, notes, exports)
+*.doc
+*.docx
+*.pdf
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+*.vsd
+*.vsdx
+*.one
+
+# Engagement notes, customer folders, and named artifacts
+customerdocuments/
+CustomerDocuments/
+customer_extract.txt
+*-Notes.md
+# Customer-named artifacts are blocked by scripts/check-forbidden.sh via a hashed
+# term blocklist (scripts/forbidden-terms.sha256), so the literal customer name
+# is never stored in this repo.
+
+# Images (may contain customer screenshots or confidential diagrams).
+# If you need a sanitized diagram in the repo, add it with an explicit
+# force-add (git add -f path/to/diagram.svg) after review.
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# ============================================================
+# Secrets and Terraform state (never commit)
+# ============================================================
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+!*.auto.example.tfvars
+.terraform/
+# Keep .terraform.lock.hcl in version control (pins provider versions).
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+azure.env
+secrets.*
+
+# ============================================================
+# Python (eval tooling bytecode / caches)
+# ============================================================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# ============================================================
+# OS / editor
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp

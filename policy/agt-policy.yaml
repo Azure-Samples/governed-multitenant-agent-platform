@@ -1,0 +1,28 @@
+# ACS v5 / Agent Governance Toolkit (AGT) policy bundle for the Agent Factory (A-1.3 runtime governance).
+#
+# Successor to policy/authz.rego: the same intent (fail-closed, enterprise non-overridable) expressed in
+# AGT's policy format. AGT runs as an IN-PROCESS SDK inside the agent runtime; this bundle is the policy it
+# enforces per tool call, complementing the out-of-process OPA PDP that the APIM gateway calls at the
+# network boundary (defense in depth). See policy/README.md.
+#
+# STARTER ONLY. Eric (security) owns the rule content. Confirm the schema against the pinned AGT v5.0.0
+# (ACS v5) with `agt lint-policy policy/` before relying on it; migrate legacy rules with `agt-policies`.
+# AGT is Public Preview: keep the version pinned.
+apiVersion: governance.toolkit/v1
+name: agent-factory-runtime-policy
+
+# Fail-closed: anything not explicitly allowed is denied.
+default_action: deny
+
+rules:
+  # Enterprise guardrail (non-overridable): never allow the admin path, regardless of BU/team/agent.
+  - name: enterprise-block-admin
+    condition: "resource.path == '/admin'"
+    action: deny
+    description: "Enterprise-level deny; lower-level (BU/team/agent) policies may add restrictions, never remove this."
+
+  # Demo allow: governed POST calls that clear the enterprise guardrail.
+  - name: allow-governed-post
+    condition: "action.method == 'POST' and resource.path != '/admin'"
+    action: allow
+    description: "Real BU/team/agent rules layer on top and may only further restrict."
