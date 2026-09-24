@@ -5,10 +5,10 @@ pattern: author agents from no-code to pro-code, apply one governance model to e
 control plane, platform-specific runtime enforcement, centralized visibility), and deploy build-once
 across a federated hub-and-spoke organization.
 
-This repository is a **sanitized sample**. It contains no tenant IDs, subscription IDs, workspace
-IDs, resource names, or customer identifiers — every environment-specific value is a documented
-placeholder wired through Terraform variables. It packages **one hub stack + one spoke stack** plus
-the shared module library, reduced from a larger internal fleet so it reads as "hub + one spoke."
+> **Synthetic data only — no customer data.** This repository contains only demonstration
+> infrastructure code and synthetic values. It carries no tenant IDs, subscription IDs, workspace
+> IDs, resource names, secrets, or customer identifiers — every environment-specific value is a
+> documented placeholder wired through Terraform variables.
 
 ## Architecture at a glance
 
@@ -40,6 +40,22 @@ across a federation:
 | `modules/policy` | Azure Policy guardrail initiative (built-in policy definitions, per-tenant assignment). |
 | `modules/purview`, `modules/api-center`, `modules/apim-ai-gateway` | Supporting module library for the control/execution planes. |
 | `policy/` | Sample policy-as-code bundle (`authz.rego`) and agent governance policy. |
+
+### Component ID mapping
+
+Each included component traces to a component ID in the architecture article (the source of truth):
+
+| Component ID | Article component | Realized by |
+| --- | --- | --- |
+| A-1.3 / B-2.3 | Policy engine (PDP) / runtime policy enforcer (PEP) | `modules/policy-engine`, `policy/authz.rego` |
+| A-2.2 | Capability catalog | `modules/api-center` |
+| A-2.3 | Routing and orchestration gateway | `modules/apim-ai-gateway` (production: the adopted AI Gateway Landing Zone accelerator) |
+| B-1.2 / B-1.3 | Tool integration (MCP) / classification-aware data access | `modules/mcp-tool` |
+| C-1.2 | Telemetry and audit pipeline (WORM) | `stacks/hub` (Log Analytics + immutable audit storage) |
+| C-1.5 | Business value and ROI | `modules/hub-workbook`, `stacks/hub/grafana` |
+| X-2 | Data classification service | `modules/purview` |
+| X-1 / federation | Identity and delegated governance | `modules/lighthouse-delegation` |
+| Guardrails (infra) | Azure Policy platform guardrails | `modules/policy` |
 
 ### Deliberately excluded from this sample
 
