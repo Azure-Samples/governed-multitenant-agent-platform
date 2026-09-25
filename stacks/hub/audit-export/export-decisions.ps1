@@ -14,7 +14,8 @@
 # run, host this on a hub compute with a private endpoint into the account. For an operator
 # run, temporarily allow the runner's public IP on the account firewall, run, then re-lock.
 param(
-  [string]$StorageAccount = "stagentfactoryaudit1hnir",
+  # Deployed hub audit storage account name (see the hub stack output audit_storage_account_id).
+  [string]$StorageAccount = "stagentfactoryaudit<suffix>",
   [string]$Container = "audit",
   [int]$LookbackDays = 90,
   # Spoke workspaces that emit runtime classification decisions from the governed MCP tool.

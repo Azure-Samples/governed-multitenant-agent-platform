@@ -210,8 +210,8 @@ module "content_safety" {
 
 # TODO: register the MCP tool as a governed backend/API in the accelerator's APIM
 #      gateway (data.terraform_remote_state.gateway.outputs.apim_name) and implement the
-#      classification-checked governed read against the synthetic Omni-style endpoint.
+#      classification-checked governed read against the synthetic data-source endpoint.
 # TODO: point the gateway PEP at the PDP (module.policy_engine.pdp_url) via an
-#      APIM policy fragment, once the Aug 25 identity decision lands.
+#      APIM policy fragment, once the identity decision lands.
 # TODO Step 3 (adopt-and-wrap): add the AGT module (ACS v5) for runtime policy +
 #      tamper-evident audit alongside the OPA PDP (defense in depth).

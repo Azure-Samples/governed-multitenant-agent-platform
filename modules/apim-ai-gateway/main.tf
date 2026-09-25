@@ -43,7 +43,7 @@ locals {
   # Service-level (global) AI Gateway policy applied to every API.
   # correlation-id is emitted for telemetry. token-limit, llm-content-safety, and
   # validate-jwt are switched on here; the validate-jwt specifics depend on the identity
-  # decision (agent vs OBO vs service) and are marked TODO until that lands (needed Aug 25).
+  # decision (agent vs OBO vs service) and are marked TODO until that decision lands.
   default_gateway_policy_xml = <<-XML
     <policies>
       <inbound>
@@ -54,7 +54,7 @@ locals {
           <value>@((string)context.Variables["correlationId"])</value>
         </set-header>
 ${local.pdp_policy_block}
-        <!-- TODO(identity decision, needed Aug 25): validate-jwt for the multitenant app
+        <!-- TODO(identity decision): validate-jwt for the multitenant app
              token / workload identity federation. Fail-closed: return 403 when the required
              token or claim is absent (achievable in policy XML, no external PDP). -->
         <!-- TODO: token-limit (per-key) + emit-token-metric once the model backend is wired -->
