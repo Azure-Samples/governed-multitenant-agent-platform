@@ -1126,7 +1126,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## Cost in dollars: estimated run-rate by specification-linked capability (, public list price)\nTokens converted to USD at the **gpt-4o global-standard public list price** ($0.0025 per 1K input, $0.01 per 1K output). Swap in the BU's contracted (EA/discount) rate for the negotiated figure; regional or PTU deployments price differently. `estMonthlyRunRateUSD` = the observed daily spend rate projected to a full 30-day month (so a 2-day demo compares to a monthly bill); the table itself covers whatever the time-range picker is set to.\n\n**Reads:** the same token spend as estimated dollars per capability, plus a projected 30-day (one month) run rate. Priced at public list, not the customer's contracted rate."
+        "json": "## Cost in dollars: estimated run-rate by specification-linked capability (public list price)\nTokens converted to USD at the **gpt-4o global-standard public list price** ($0.0025 per 1K input, $0.01 per 1K output). Swap in the BU's contracted (EA/discount) rate for the negotiated figure; regional or PTU deployments price differently. `estMonthlyRunRateUSD` = the observed daily spend rate projected to a full 30-day month (so a 2-day demo compares to a monthly bill); the table itself covers whatever the time-range picker is set to.\n\n**Reads:** the same token spend as estimated dollars per capability, plus a projected 30-day (one month) run rate. Priced at public list, not your organization's contracted rate."
       },
       "name": "hdr-cost-usd",
       "conditionalVisibilities": [
@@ -1605,7 +1605,7 @@
     },
     {
       "content": {
-        "json": "## specification to execution to evaluation lineage (the traceable spine)\n\n**Status: partially live (proxy key).** Grouped by the agent's specification name today; it auto-swaps to the stamped `spec_id` the moment the agent emits it.\n\n**Reads:** one row per specification, keyed on the agent's specification name today and on the stamped `spec_id` the instant the agent emits it, with the runs, evaluations, and tool calls under each specification. This is the customer's specification -> agent -> execution -> eval chain on one grid, cross-tenant."
+        "json": "## specification to execution to evaluation lineage (the traceable spine)\n\n**Status: partially live (proxy key).** Grouped by the agent's specification name today; it auto-swaps to the stamped `spec_id` the moment the agent emits it.\n\n**Reads:** one row per specification, keyed on the agent's specification name today and on the stamped `spec_id` the instant the agent emits it, with the runs, evaluations, and tool calls under each specification. This is your specification -> agent -> execution -> eval chain on one grid, cross-tenant."
       },
       "name": "hdr-spec-lineage",
       "type": 1,
@@ -2731,7 +2731,7 @@
     {
       "type": 1,
       "content": {
-        "json": "---\n**Scaling:** each new BU is one more `workspace('...')` block per tile (Azure Monitor allows up to 100 workspaces per cross-workspace query) plus one more entry in the **Business Unit (BU)** dropdown. The auto-discovery version replaces the hardcoded IDs with a workspace-picker parameter fed by Azure Resource Graph, filtered to the `project=demo-agent-factory` tag.\n\n**Traces to reference architecture:** Telemetry & Audit, Business Value & ROI, Agent Collaboration, Evaluation, specification linkage, Gateway, / classification. **Live token/cost comes from `AppGenAIContent.Attributes`** (`gen_ai.usage.*`), not the empty gateway LLM log."
+        "json": "---\n**Scaling:** each new BU is one more `workspace('...')` block per tile (Azure Monitor allows up to 100 workspaces per cross-workspace query) plus one more entry in the **Business Unit (BU)** dropdown. The auto-discovery version replaces the hardcoded IDs with a workspace-picker parameter fed by Azure Resource Graph, filtered to the `project=governed-multitenant-agent-platform` tag.\n\n**Traces to reference architecture:** Telemetry & Audit, Business Value & ROI, Agent Collaboration, Evaluation, specification linkage, Gateway, and classification. **Live token/cost comes from `AppGenAIContent.Attributes`** (`gen_ai.usage.*`), not the empty gateway LLM log."
       },
       "name": "footer"
     }

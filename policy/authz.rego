@@ -1,5 +1,5 @@
 # Policy-as-code for the agent platform Policy Decision Point, served by OPA.
-# Hierarchy the customer requires: enterprise (non-overridable) -> BU -> team -> agent.
+# Hierarchy the platform enforces: enterprise (non-overridable) -> BU -> team -> agent.
 # Lower levels may only ADD restrictions, never remove an enterprise one.
 # Fail-closed: anything not explicitly allowed is denied (the gateway PEP treats a missing
 # or false result as a 403).

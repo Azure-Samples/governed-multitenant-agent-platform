@@ -2,7 +2,7 @@ locals {
   tags = merge({
     workload    = "agent-factory"
     plane       = "hub"
-    project     = "demo-agent-factory"
+    project     = "governed-multitenant-agent-platform"
     environment = "demo"
     owner       = "demo"
     managed_by  = "terraform"

@@ -27,6 +27,6 @@ variable "managed_resource_group_name" {
 
 variable "tags" {
   type        = map(string)
-  description = "Tags applied to the account. Include project=demo-agent-factory per the harness convention."
+  description = "Tags applied to the account. Include project=governed-multitenant-agent-platform per the harness convention."
   default     = {}
 }

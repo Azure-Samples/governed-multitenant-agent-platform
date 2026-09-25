@@ -69,7 +69,7 @@ variable "log_analytics_workspace_id" {
 
 variable "enable_approved_models_policy" {
   type        = bool
-  description = "Add the Foundry approved-models guardrail. Off by default until the customer defines its approved model list, since an empty allow-list audits every deployment as non-compliant."
+  description = "Add the Foundry approved-models guardrail. Off by default until you define your approved model list, since an empty allow-list audits every deployment as non-compliant."
   default     = false
 }
 

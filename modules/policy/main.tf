@@ -1,5 +1,5 @@
 # Curated AI-platform guardrail initiative (audit-first). Groups built-in Azure Policy
-# definitions that map to the Citadel reference architecture and the customer's design:
+# definitions that map to this governed agent platform's design:
 # seal the model backends, require keyless + private access, keep telemetry flowing, and
 # govern tags/locations. GUIDs verified against the live built-in catalogue (2026-09-17).
 # Effects default to Audit (report, block nothing); raise auditEffect to Deny and

@@ -65,4 +65,4 @@ module "policy" {
 ```
 
 Effects stay Audit-first; flip `audit_effect = "Deny"` / `configure_effect = "Modify"` only
-after a burn-in per Citadel's "demonstrate the outcome before expanding."
+after a burn-in that follows the "demonstrate the outcome before expanding" principle.
