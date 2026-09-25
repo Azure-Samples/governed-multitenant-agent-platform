@@ -25,6 +25,6 @@ Two complementary layers answer "is this action allowed?" at runtime. Both must 
 
 ## Ownership and status
 
-- Eric (security + Purview) owns the rule content in both files; the versions here are fail-closed starters.
+- The security and Purview owner owns the rule content in both files; the versions here are fail-closed starters.
 - The AGT side is **Public Preview**: pin the version and state preview status in the demo.
 - Validate the AGT bundle with `agt lint-policy policy/` (ACS v5) before relying on it.

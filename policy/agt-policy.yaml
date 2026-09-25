@@ -5,7 +5,7 @@
 # enforces per tool call, complementing the out-of-process OPA PDP that the APIM gateway calls at the
 # network boundary (defense in depth). See policy/README.md.
 #
-# STARTER ONLY. Eric (security) owns the rule content. Confirm the schema against the pinned AGT v5.0.0
+# STARTER ONLY. The security owner owns the rule content. Confirm the schema against the pinned AGT v5.0.0
 # (ACS v5) with `agt lint-policy policy/` before relying on it; migrate legacy rules with `agt-policies`.
 # AGT is Public Preview: keep the version pinned.
 apiVersion: governance.toolkit/v1
