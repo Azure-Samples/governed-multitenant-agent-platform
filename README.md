@@ -84,7 +84,8 @@ federation. Each module realizes one of those capabilities:
   backend) is provided in production by the published Microsoft **AI Gateway Landing Zone**
   accelerator (`Azure/terraform-ai-gateway-landing-zone`), adopted at a pinned commit rather than
   copied in. `stacks/spoke-harness` integrates with it optionally (`enable_gateway_integration`,
-  off by default).
+  off by default). If you set it to `true`, deploy the accelerator first, then apply
+  `stacks/spoke-harness` so it can read the accelerator's outputs.
 - Additional spokes, connectivity stack, and the multi-tenant policy fan-out stack.
 
 ## Preview components
